@@ -22,7 +22,7 @@ recipients is worse than one that refuses to start.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -121,18 +121,32 @@ def load_all_profiles(
     config: Mapping[str, Any],
     sources: Mapping[str, Mapping[str, Any]],
     env: Mapping[str, str],
+    on_error: Callable[[Path, Exception], None] | None = None,
 ) -> list[Profile]:
     """Every `*.yaml` and `*.yml` under `directory`, sorted by filename.
 
-    A profile that fails validation raises. The caller decides whether one bad
-    profile stops the run or is skipped; this module does not swallow it.
+    A profile that fails validation raises, unless the caller supplies
+    ``on_error``, in which case that file is reported and skipped and the rest
+    load. The decision belongs to the caller: one malformed file must not cost
+    every other profile its brief, but a tool that silently drops profiles
+    would be worse, so skipping is opt-in and always reported.
+
+    The duplicate-name check runs over the profiles that survived.
     """
     d = Path(directory)
-    files = sorted([*d.glob("*.yaml"), *d.glob("*.yml")])
-    profiles = [load_profile(f, config=config, sources=sources, env=env) for f in files]
+    loaded: list[tuple[Path, Profile]] = []
+    for file in sorted([*d.glob("*.yaml"), *d.glob("*.yml")]):
+        try:
+            loaded.append(
+                (file, load_profile(file, config=config, sources=sources, env=env))
+            )
+        except Exception as exc:
+            if on_error is None:
+                raise
+            on_error(file, exc)
 
     seen: dict[str, Path] = {}
-    for file, profile in zip(files, profiles):
+    for file, profile in loaded:
         if profile.name in seen:
             raise ProfileError(
                 file,
@@ -141,7 +155,7 @@ def load_all_profiles(
                 f"two profiles with one name would overwrite each other's stored brief",
             )
         seen[profile.name] = file
-    return profiles
+    return [profile for _file, profile in loaded]
 
 
 def fetch_plan(profiles: list[Profile]) -> list[tuple[str, dict[str, Any], str]]:

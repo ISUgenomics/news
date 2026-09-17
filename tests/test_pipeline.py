@@ -8,6 +8,7 @@ modules against a stub provider — a plain callable, because that is all the
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -162,6 +163,54 @@ def test_keyword_filter_keeps_relevant_and_drops_the_rest(conn):
     assert "Parking" not in text, "any_of must drop an item that matches nothing"
 
 
+def test_more_keyword_hits_outranks_being_newer(conn):
+    """The documented policy: hit count first, recency only as the tiebreak."""
+    db.upsert_items(
+        conn,
+        [
+            Item(
+                source="feed_a",
+                url="https://example.test/broad",
+                title="AI and machine learning centre wins award",
+                body="Work on artificial intelligence and machine learning.",
+                published_at="2026-09-11T00:00:00Z",
+            )
+        ],
+        now=NOW,
+        source_key="feed_a",
+    )
+    selection, _, _ = run(conn, make_profile(), StubProvider(good_reply()))
+    first = selection.rendered[0][1]
+    assert "centre wins award" in first, (
+        "three distinct keyword hits must outrank two items that are five days newer"
+    )
+    assert selection.candidates[0].hits > selection.candidates[1].hits
+
+
+def test_item_text_is_redacted_before_it_can_reach_the_model(conn):
+    """Scraped pages are text we did not write, and the prompt is stored."""
+    db.upsert_items(
+        conn,
+        [
+            Item(
+                source="feed_a",
+                url="https://example.test/leak",
+                title="An AI award announcement",
+                body="Contact the PI. Their key is sk-ant-api03-" + "A" * 40 + " sorry.",
+                published_at="2026-09-16T00:00:00Z",
+            )
+        ],
+        now=NOW,
+        source_key="feed_a",
+    )
+    provider = StubProvider(good_reply())
+    run(conn, make_profile(), provider)
+
+    sent = " ".join(m["content"] for m in provider.calls[0])
+    assert "sk-ant-api03-AAAA" not in sent, "a pasted key must not reach the model"
+    assert "An AI award announcement" in sent, "and the item is still sent"
+
+
 def test_a_small_context_window_leaves_items_out_and_says_so(conn):
     profile = make_profile()
     provider = StubProvider(good_reply(), window=1500)
@@ -171,11 +220,30 @@ def test_a_small_context_window_leaves_items_out_and_says_so(conn):
 
 
 def test_items_are_numbered_from_one_and_map_back_to_row_ids(conn):
+    """The mapping must follow the SEND order, not the row order.
+
+    Asserting only that the keys are 1..n is tautological — that is how they
+    are built. What matters is that position N in the prompt resolves to the
+    database id of the item actually rendered at position N, because the
+    renderer turns the model's citations into links through this map. Get it
+    wrong and every link points at the wrong article while everything still
+    looks well-formed.
+    """
     profile = make_profile()
     selection, _, _ = run(conn, profile, StubProvider(good_reply()))
     mapping = selection.citation_map()
+
     assert sorted(mapping) == list(range(1, selection.sent + 1))
-    assert all(isinstance(v, int) for v in mapping.values())
+    for position, (item_id, text) in enumerate(selection.rendered, start=1):
+        assert mapping[position] == item_id
+
+    # And the order is the ranked one. Both fixture items hit exactly one
+    # keyword, so the documented tiebreak applies: newer first. The hire is
+    # dated 09-16 and the award 09-15, so the hire leads despite the lower id.
+    titles = [t for _i, t in selection.rendered]
+    assert "faculty hire" in titles[0]
+    assert "machine learning award" in titles[1]
+    assert mapping[1] > mapping[2], "ranked order, not ascending row id"
 
 
 # --- the JSON contract ----------------------------------------------------
@@ -434,3 +502,39 @@ def test_prompt_hash_changes_when_the_item_rendering_changes(conn):
     assert synth_mod.prompt_hash(prompt, item_render_version=1) != synth_mod.prompt_hash(
         prompt, item_render_version=2
     )
+
+
+def test_a_link_the_model_wrote_does_not_survive_into_the_page(conn):
+    """Through render(), not just the helper.
+
+    Testing neutralize_links directly passes even if render() never calls it,
+    which is how this was nearly missed. The page's contract is that every link
+    goes to a cited source, so the check has to be on the rendered artifact.
+    """
+    reply = json.dumps(
+        {
+            "buckets": [
+                {
+                    "name": "Funding",
+                    "entries": [
+                        {
+                            "text": "Read [the announcement](https://evil.test) or <https://also-evil.test>.",
+                            "item_ids": [1],
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    _, _, page = run(conn, make_profile(), StubProvider(reply))
+
+    assert r"\[the announcement\]" in page.markdown, "the brackets are escaped, not a link"
+    assert "<https://also-evil.test>" not in page.markdown, "the autolink brackets are gone"
+    assert "the announcement" in page.markdown, "but the words survive"
+
+    from brief.lib.markdown_email import markdown_to_html
+
+    html = markdown_to_html(page.markdown)
+    hrefs = re.findall(r'href="([^"]+)"', html)
+    assert hrefs, "the citation link is still there"
+    assert all("evil.test" not in h for h in hrefs), f"only cited sources may be links: {hrefs}"

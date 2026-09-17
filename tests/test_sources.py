@@ -112,10 +112,18 @@ def test_rss_adapter_falls_back_to_the_url_when_an_entry_has_no_title(stub_http)
 
 
 def test_rss_adapter_keeps_a_thin_entry_when_its_article_page_will_not_load(stub_http):
-    """Losing a real item because its page 404s would be worse than a thin one."""
-    thin = RSS.replace(b"x" * 400, b"too short")
+    """Losing a real item because its page 404s would be worse than a thin one.
+
+    The entry link must point at the stub. With the fixture's absolute
+    example.test URL the expansion attempted a live DNS lookup instead, so the
+    test passed on a network failure and never exercised its own 404 route.
+    """
+    thin = RSS.replace(b"x" * 400, b"too short").replace(
+        b"https://example.test/one", (stub_http.url + "/one").encode()
+    )
     stub_http.route("/feed", thin)
-    stub_http.route("/one", lambda req: (404, b"gone"))
+    hits = []
+    stub_http.route("/one", lambda req: hits.append(req.path) or (404, b"gone"))
 
     items, _ = fetch(
         "f",
@@ -125,6 +133,7 @@ def test_rss_adapter_keeps_a_thin_entry_when_its_article_page_will_not_load(stub
         now=NOW,
     )
     assert items[0].body == "too short"
+    assert hits, "the article page must actually have been requested"
 
     # And identically on a retry: a body that alternates between the summary
     # and the article text hashes differently, so one flaky page would store
@@ -140,7 +149,9 @@ def test_rss_adapter_keeps_a_thin_entry_when_its_article_page_will_not_load(stub
 
 
 def test_rss_adapter_can_be_told_not_to_expand_at_all(stub_http):
-    thin = RSS.replace(b"x" * 400, b"too short")
+    thin = RSS.replace(b"x" * 400, b"too short").replace(
+        b"https://example.test/one", (stub_http.url + "/one").encode()
+    )
     stub_http.route("/feed", thin)
     calls = []
     stub_http.route("/one", lambda req: calls.append(1) or b"<html><p>full</p></html>")

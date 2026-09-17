@@ -86,13 +86,36 @@ def read_env(root: Path) -> dict[str, str]:
 
 
 def load_world(root: Path) -> tuple[dict[str, Any], dict[str, Any], list[Profile]]:
-    """Config, sources, and every profile. Raises on a malformed file."""
+    """Config, sources, and the profiles that loaded.
+
+    A malformed **profile** is logged and skipped so the others still run: a
+    brief that arrives for three of four readers beats a run that aborted on
+    the first bad YAML file.
+
+    A malformed `config.yaml` or `sources.yaml` still raises, and should. Those
+    are shared state — carrying on with half a source registry would produce
+    briefs that are quietly missing sources, which is worse than not running.
+    """
     env = read_env(root)
     config = load_yaml(root / "config.yaml")
     sources = load_sources(root / "sources.yaml", env)
+    skipped: list[str] = []
+
+    def skip(file: Path, exc: Exception) -> None:
+        skipped.append(file.name)
+        log(
+            "profile.error",
+            file=str(file),
+            error=str(exc),
+            type=type(exc).__name__,
+            note="this profile is skipped; the others still run",
+        )
+
     profiles = load_all_profiles(
-        root / "profiles", config=config, sources=sources, env=env
+        root / "profiles", config=config, sources=sources, env=env, on_error=skip
     )
+    if skipped:
+        log("profile.skipped", count=len(skipped), files=skipped)
     return config, sources, profiles
 
 

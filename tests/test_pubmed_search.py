@@ -20,6 +20,11 @@ from brief.lib import pubmed_search as ps
 from harness.stub_http import Response, unreachable_url  # noqa: F401
 from harness.stub_http import stub_http as stub_http_server  # noqa: F401
 
+# Not a credential. Named so the secret scanner recognises it as a fixture
+# rather than reporting this file on every run — a gate that cries wolf is one
+# people stop reading.
+FAKE_API_KEY = "FAKE-NCBI-KEY-FOR-TESTS"
+
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 ESEARCH_PATH = "/esearch.fcgi"
@@ -694,12 +699,12 @@ def test_http_error_message_masks_the_api_key(stub_http):
             "maize[Title]",
             email=EMAIL,
             base_url=stub_http.url,
-            api_key="SUPERSECRETKEY123",
+            api_key=FAKE_API_KEY,
         )
 
     message = str(excinfo.value)
     # the caller logs what this module raises, so the key must not ride along
-    assert "SUPERSECRETKEY123" not in message
+    assert FAKE_API_KEY not in message
     assert "api_key=REDACTED" in message
     # ... and the rest of the request is still there to debug with
     assert "term=maize" in message

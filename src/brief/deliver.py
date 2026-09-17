@@ -14,6 +14,7 @@ second copy in a chair's inbox.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -36,8 +37,36 @@ class Delivered:
     resent: bool
 
 
+_SAFE_COMPONENT = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+
+
+class UnsafeArchiveName(ValueError):
+    """A profile name or week would escape the archive directory."""
+
+
+def _safe_component(value: str, field: str) -> str:
+    """Refuse anything that is not a plain filename.
+
+    Both values are operator-supplied — a profile's `name` from YAML, a week
+    from `--week` — and both become path segments. A name of `../../etc` would
+    write outside the archive entirely. Whitelisting is the check that does not
+    need to anticipate every escape.
+    """
+    if not _SAFE_COMPONENT.match(value or ""):
+        raise UnsafeArchiveName(
+            f"{field} {value!r} is not usable as a file name; it must start with a "
+            f"letter or digit and contain only letters, digits, dot, dash or underscore"
+        )
+    return value
+
+
 def archive_path(root: str | Path, profile_name: str, week_start: str) -> Path:
-    return Path(root) / profile_name / f"{week_start}.md"
+    """`<root>/<profile>/<week>.md`, with both components validated."""
+    return (
+        Path(root)
+        / _safe_component(profile_name, "profile name")
+        / f"{_safe_component(week_start, 'week')}.md"
+    )
 
 
 def write_archive(

@@ -163,6 +163,11 @@ def upsert_items(
     queried for two different awardees is two keys, so two profiles cannot see
     each other's awards. It defaults to the item's source name, which is right
     whenever the source carries no per-profile parameters.
+
+    The conflict clause names the unique index rather than using
+    ``INSERT OR IGNORE``, which would swallow every constraint violation alike:
+    an item with a null url is a broken adapter, and reporting it as "already
+    seen" is how a source quietly stops working while the log says it is fine.
     """
     fetched_at = _iso(now)
     added = 0
@@ -183,10 +188,11 @@ def upsert_items(
             else None,
         )
         cur = conn.execute(
-            "INSERT OR IGNORE INTO items"
+            "INSERT INTO items"
             " (source, source_key, external_id, url, title, body, published_at,"
             "  fetched_at, content_hash, raw_json)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            " ON CONFLICT(source_key, content_hash) DO NOTHING",
             row,
         )
         added += cur.rowcount if cur.rowcount > 0 else 0

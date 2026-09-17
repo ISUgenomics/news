@@ -15,6 +15,7 @@ prepares a brief is a fact about a deployment, not about this module.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -26,6 +27,30 @@ from brief.select import Selection
 DEFAULT_PROVENANCE = (
     "Prepared automatically from public sources; every statement links to its source."
 )
+
+
+_LINK_CHARS = str.maketrans({"[": r"\[", "]": r"\]"})
+# <https://…> and <mailto:…> are Markdown autolinks. Backslash-escaping the
+# angle bracket does not stop them, so the brackets are removed and the URL is
+# left as plain text. Targeted at the autolink form on purpose: a bare "<" in
+# prose ("<$1M") is ordinary and must survive untouched.
+_AUTOLINK = re.compile(r"<((?:https?|ftp|ftps|mailto|tel|data|javascript|file):[^>\s]*)>", re.I)
+
+
+def neutralize_links(text: str) -> str:
+    """Stop model-authored text from carrying links of its own.
+
+    The page's contract with the reader is that every link goes to a cited
+    source. The citation links are appended by us from the url map; a link
+    inside the model's own sentence has not been through that check and could
+    point anywhere, which is precisely the trust the brief is asking for.
+
+    So ``[`` and ``]`` are escaped, which kills inline links and images, and
+    the angle brackets around an autolink are removed. A bare URL stays visible
+    as text, which is honest — the reader can see it and judge it — but it is
+    not clickable and not presented as a source.
+    """
+    return _AUTOLINK.sub(r"\1", text).translate(_LINK_CHARS)
 
 
 def provenance_for(profile: Profile) -> str:
@@ -79,7 +104,7 @@ def render(
     }
 
     declared = {b.name for b in profile.buckets}
-    result = dict(result)
+    result = _neutralize_result(dict(result))
     invented = [
         b for b in (result.get("buckets") or []) if str(b.get("name")) not in declared
     ]
@@ -109,6 +134,31 @@ def render(
     return RenderedBrief(
         markdown=markdown, kept=rendered.kept, dropped=list(rendered.dropped)
     )
+
+
+def _neutralize_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Apply `neutralize_links` to every piece of model-authored text."""
+    out = dict(result)
+    if isinstance(out.get("buckets"), list):
+        out["buckets"] = [
+            {**b, "entries": [_neutralize_entry(e) for e in (b.get("entries") or [])]}
+            if isinstance(b, dict)
+            else b
+            for b in out["buckets"]
+        ]
+    for key, value in list(out.items()):
+        if key != "buckets" and isinstance(value, list):
+            out[key] = [
+                _neutralize_entry(e) if isinstance(e, dict) and "text" in e else e
+                for e in value
+            ]
+    return out
+
+
+def _neutralize_entry(entry: Any) -> Any:
+    if not isinstance(entry, dict) or not isinstance(entry.get("text"), str):
+        return entry
+    return {**entry, "text": neutralize_links(entry["text"])}
 
 
 def _footer(
