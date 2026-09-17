@@ -186,3 +186,14 @@ tests = 26
 boundary = "docs/seeds/crates-io-search.md"
 when_to_use = "You want to know what someone just published in a language ecosystem, and the literature will not tell you for months. A package registry is where a tool exists first; crates.io separates `new` from `recent-update`, which is the difference between created this week and touched this week."
 demand = "Measured 2026-09-17: 1,031 crates match \"bioinformatics\", and sort=new surfaces four created in the past week that appear in no other source this project has."
+
+[[seed]]
+slug = "github-repo-search"
+path = "src/brief/lib/github_repo_search.py"
+test = "tests/test_github_repo_search.py"
+planted = "2026-09-17"
+band = "unscored"
+tests = 29
+boundary = "docs/seeds/github-repo-search.md"
+when_to_use = "You want to see software as it appears rather than as it is later written up. GitHub search reaches both what is new (created:) and what is alive (pushed:), and it surfaces the tools nobody packaged."
+demand = "Measured 2026-09-17: for one language and one topic, 125 repositories pushed in 30 days and 10 created, two of them the same day, none appearing in crates.io, OpenAlex or bioRxiv. The module exists mainly for two lying successes — incomplete_results on a 200, and a spent search limit reported as 403."

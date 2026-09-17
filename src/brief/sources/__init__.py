@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Any
 
 from brief.models import Item
-from brief.sources import crates, nih, nsf, openalex, pubmed, rss, usaspending
+from brief.sources import crates, github, nih, nsf, openalex, pubmed, rss, usaspending
 from brief.sources._format import money
 
 Fetch = Callable[..., list[Item]]
@@ -30,6 +30,7 @@ MODULES = {
     "rss": rss,
     "openalex": openalex,
     "crates": crates,
+    "github": github,
     "nsf": nsf,
     "nih": nih,
     "usaspending": usaspending,
@@ -74,6 +75,11 @@ def rederive(source: str, raw: dict) -> tuple[dict[str, str] | None, str | None]
 
         record = normalize_award(raw, award_type_group="grants")
         return usaspending._facts(record), record.get("published_at")
+    if source.startswith("github"):
+        from brief.lib.github_repo_search import normalize_repo
+
+        record = normalize_repo(raw)
+        return github._facts(record), record.get("published_at")
     if source.startswith("openalex"):
         from brief.lib.openalex_works_search import normalize_work
 

@@ -57,7 +57,13 @@ def log(event: str, **fields: Any) -> None:
 
 #: Secrets this app may need. Named after the variables that consume them, so
 #: a keychain entry and a `${VAR}` reference in config are the same word.
-SECRET_NAMES = ("CD_TOKEN", "SMTP_USER", "SMTP_PASSWORD", "ANTHROPIC_API_KEY")
+SECRET_NAMES = (
+    "CD_TOKEN",
+    "SMTP_USER",
+    "SMTP_PASSWORD",
+    "ANTHROPIC_API_KEY",
+    "GITHUB_TOKEN",
+)
 
 #: The generic-password service secrets live under. One entry per variable:
 #:     security add-generic-password -s topic-brief -a CD_TOKEN -w

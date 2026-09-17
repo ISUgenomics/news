@@ -72,6 +72,15 @@ crates_io:
   # contact. Not a secret; the seed refuses a UA without one.
   user_agent: "topic-brief (mailto:severin@iastate.edu)"
 
+github_repos:
+  kind: github                  # `query` set per profile, in GitHub's own syntax
+  user_agent: "topic-brief (mailto:severin@iastate.edu)"
+  # OPTIONAL. Unauthenticated search allows 10 requests/minute, authenticated
+  # 30; a weekly job fits in either, so this is a nicety, not a requirement.
+  # Resolved from the keychain when present (CLAUDE.md 10), never from a file:
+  #     security add-generic-password -s topic-brief -a GITHUB_TOKEN -w
+  token: "${GITHUB_TOKEN:-}"   # empty when unset — the seed treats that as anonymous
+
 nsf:
   kind: nsf                     # awardee | keyword | pi_name set per profile
 

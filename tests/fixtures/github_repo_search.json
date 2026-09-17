@@ -1,0 +1,192 @@
+{
+ "total_count": 491,
+ "incomplete_results": false,
+ "items": [
+  {
+   "full_name": "CDCgov/zoe",
+   "html_url": "https://github.com/CDCgov/zoe",
+   "description": "Zoe provides both broad and highly specialized implementations for bioinformatics. In particular, we focus on common data formats and methods relevant for the sequencing of RNA viruses.",
+   "created_at": "2025-01-15T20:47:29Z",
+   "pushed_at": "2026-09-17T19:27:34Z",
+   "updated_at": "2026-09-17T19:25:23Z",
+   "stargazers_count": 8,
+   "forks_count": 3,
+   "open_issues_count": 0,
+   "language": "Rust",
+   "topics": [
+    "bioinformatics",
+    "cdc-influenza-division",
+    "ncird",
+    "ncird-id"
+   ],
+   "archived": false,
+   "fork": false,
+   "license": {
+    "spdx_id": "Apache-2.0"
+   },
+   "homepage": "https://cdcgov.github.io/zoe",
+   "owner": {
+    "login": "CDCgov"
+   }
+  },
+  {
+   "full_name": "stjude-rust-labs/sprocket",
+   "html_url": "https://github.com/stjude-rust-labs/sprocket",
+   "description": null,
+   "created_at": "2023-12-17T23:12:08Z",
+   "pushed_at": "2026-09-17T19:26:57Z",
+   "updated_at": "2026-09-17T19:15:03Z",
+   "stargazers_count": 210,
+   "forks_count": 74,
+   "open_issues_count": 136,
+   "language": "Rust",
+   "topics": [
+    "bioinformatics",
+    "bioinformatics-pipeline",
+    "wdl",
+    "wdl-devtools",
+    "wdl-workflow",
+    "workflow",
+    "workflow-engine"
+   ],
+   "archived": false,
+   "fork": false,
+   "license": {
+    "spdx_id": "Apache-2.0"
+   },
+   "homepage": "https://sprocket.bio",
+   "owner": {
+    "login": "stjude-rust-labs"
+   }
+  },
+  {
+   "full_name": "genomoncology/biomcp",
+   "html_url": "https://github.com/genomoncology/biomcp",
+   "description": "BioMCP: Biomedical Model Context Protocol",
+   "created_at": "2025-04-01T21:44:02Z",
+   "pushed_at": "2026-09-17T19:05:08Z",
+   "updated_at": "2026-09-17T19:04:36Z",
+   "stargazers_count": 633,
+   "forks_count": 115,
+   "open_issues_count": 3,
+   "language": "Rust",
+   "topics": [
+    "ai",
+    "bioinformatics",
+    "clinical-trials",
+    "genomics",
+    "llm",
+    "mcp",
+    "mcp-server",
+    "medical",
+    "model-context-protocol",
+    "pubmed",
+    "pubmed-central"
+   ],
+   "archived": false,
+   "fork": false,
+   "license": null,
+   "homepage": "https://biomcp.org/",
+   "owner": {
+    "login": "genomoncology"
+   }
+  },
+  {
+   "full_name": "genhub-bio/gen",
+   "html_url": "https://github.com/genhub-bio/gen",
+   "description": "Git for genomes",
+   "created_at": "2025-04-24T18:33:53Z",
+   "pushed_at": "2026-09-17T19:30:13Z",
+   "updated_at": "2026-09-17T18:53:55Z",
+   "stargazers_count": 35,
+   "forks_count": 0,
+   "open_issues_count": 35,
+   "language": "Rust",
+   "topics": [
+    "bioinformatics",
+    "combinatorial-libraries",
+    "genomics",
+    "git-but-for-genomes",
+    "library-design",
+    "lineage-tracking",
+    "pangenome-graphs",
+    "pangenome-visualization",
+    "sequence-graphs",
+    "synthetic-biology",
+    "variant-tracking"
+   ],
+   "archived": false,
+   "fork": true,
+   "license": {
+    "spdx_id": "Apache-2.0"
+   },
+   "homepage": "https://www.genhub.bio/",
+   "owner": {
+    "login": "genhub-bio"
+   }
+  },
+  {
+   "full_name": "fulcrumgenomics/fgumi",
+   "html_url": "https://github.com/fulcrumgenomics/fgumi",
+   "description": "High-performance UMI tools for NGS data analysis",
+   "created_at": "2026-01-24T03:24:46Z",
+   "pushed_at": "2026-09-17T18:35:16Z",
+   "updated_at": "2026-09-17T17:37:48Z",
+   "stargazers_count": 55,
+   "forks_count": 2,
+   "open_issues_count": 28,
+   "language": "Rust",
+   "topics": [
+    "bioinformatics",
+    "consensus-calling",
+    "duplex-sequencing",
+    "genomics",
+    "ngs",
+    "rust",
+    "sequencing",
+    "umi"
+   ],
+   "archived": true,
+   "fork": false,
+   "license": {
+    "spdx_id": "MIT"
+   },
+   "homepage": "https://fgumi.readthedocs.io/en/latest/",
+   "owner": {
+    "login": "fulcrumgenomics"
+   }
+  },
+  {
+   "full_name": "chitin-dev/chitin",
+   "html_url": "https://github.com/chitin-dev/chitin",
+   "description": "🦀🧪 chitin: a modern, agent-native computational chemistry and bioinformatics integrated development suite",
+   "created_at": "2026-07-11T04:17:38Z",
+   "pushed_at": "2026-09-17T17:28:47Z",
+   "updated_at": "2026-09-17T17:28:58Z",
+   "stargazers_count": 5,
+   "forks_count": 0,
+   "open_issues_count": 8,
+   "language": "Rust",
+   "topics": [
+    "agent",
+    "ai4s",
+    "ai4science",
+    "bioinformatics",
+    "chitin",
+    "computational-chemistry",
+    "gpui",
+    "ide",
+    "rust"
+   ],
+   "archived": false,
+   "fork": false,
+   "license": {
+    "spdx_id": "Apache-2.0"
+   },
+   "homepage": "https://chitin-ide.dev",
+   "owner": {
+    "login": "chitin-dev"
+   }
+  }
+ ]
+}
