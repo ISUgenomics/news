@@ -1,4 +1,10 @@
-"""NSF awards. The profile supplies the filter: an awardee, or a keyword."""
+"""NSF awards. The profile supplies the filter: an awardee, or a keyword.
+
+Pass `awardee_state` alongside `awardee` for an institution search. NSF's
+`awardeeName` is not an exact filter — the seed enforces the institution
+locally either way, but the state code is what stops the query fetching several
+hundred unrelated awards first.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +25,7 @@ def fetch(
 ) -> list[Item]:
     records = search_nsf_awards(
         awardee=params.get("awardee"),
+        awardee_state=params.get("awardee_state"),
         keyword=params.get("keyword"),
         pi_name=params.get("pi_name"),
         date_start=since.date(),

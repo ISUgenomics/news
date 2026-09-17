@@ -36,12 +36,59 @@ You need the list of NSF awards to an institution, on a topic, or to a named PI 
 - the changedetection.io feed, RSS, NIH RePORTER, or USAspending shapes — one endpoint only
 
 ## Public API
+
+Revised 2026-09-17, after a live run. This is a **boundary change**, recorded here
+in the same commit as the code per CLAUDE.md rule 3.
+
+**What changed and why.** The drafted boundary treated `awardee` as a filter the API
+applies. It is not one. NSF splits `awardeeName` into words and matches any of them, so
+asking for "Iowa State University" returns awards from every institution with
+"University" in its name. Measured against the live API: 308 awards across 159
+institutions in one month, with Iowa State not among the eight most frequent. The saved
+fixture in `tests/fixtures/nsf_award_search_page.json` is itself an instance — a real
+response to a Tuskegee query containing a University of Colorado award.
+
+So `awardee` now means **the institution the caller gets, not a hint sent to NSF**. It is
+applied twice: sent to the API, where it narrows nothing reliably, and enforced again on
+every record returned, where it decides.
+
+`awardee_state` is the new companion parameter and the pairing is the point.
+`awardeeStateCode` *is* exact. Over one 90-day window, state "IA" returned 68 awards
+across 4 Iowa institutions, 44 of them Iowa State. Without it the answer is still
+correct, just after fetching and discarding far more.
+
 ```python
-def search_nsf_awards(*, awardee: str | None = None, keyword: str | None = None, pi_name: str | None = None, date_start: datetime.date, date_end: datetime.date | None = None, base_url: str = "https://api.nsf.gov/services/v1/awards.json", timeout_s: float = 30.0, max_pages: int = 40, user_agent: str = "nsf-award-search/0.1") -> list[dict]
-def build_query_url(base_url: str, *, awardee: str | None, keyword: str | None, pi_name: str | None, date_start: datetime.date, date_end: datetime.date, offset: int = 1, rpp: int = 25) -> str
-def normalize_award(raw: dict) -> dict
 class NSFSearchError(RuntimeError): ...
+
+def normalize_institution(name: str | None) -> str
+    # casefold, strip punctuation, collapse whitespace; comparison only
+
+def matches_awardee(record_name: str | None, wanted: str | None) -> bool
+    # substring on the normalized form, so "Iowa State University" also matches a
+    # longer recorded legal name. wanted=None matches everything.
+
+def build_query_url(base_url: str, *, awardee: str | None, keyword: str | None,
+                    pi_name: str | None, date_start: date, date_end: date,
+                    awardee_state: str | None = None,
+                    offset: int = 0, rpp: int = 25) -> str
+
+def normalize_award(raw: dict) -> dict
+    # external_id, url, title, body, published_at, pi_name, awardee, amount,
+    # agency, program, raw. amount is the JSON value verbatim.
+
+def search_nsf_awards(*, awardee: str | None = None, awardee_state: str | None = None,
+                      keyword: str | None = None, pi_name: str | None = None,
+                      date_start: date, date_end: date | None = None,
+                      today: date | None = None, base_url: str = DEFAULT_BASE_URL,
+                      timeout_s: float = 30.0, max_pages: int = 40,
+                      user_agent: str = "nsf-award-search/0.1") -> list[dict]
 ```
+
+**Kept from the original boundary.** `printFields` is still set explicitly, because the
+default field set omits `abstractText` and the body would always be empty. Dates are
+still explicit parameters with `today` injectable, so goldens stay deterministic.
+`dateStart`/`dateEnd` still filter on the award's *effective* date, not the project start
+date. `amount` is still the JSON value verbatim, never parsed.
 
 ## Test harness
 stub_http

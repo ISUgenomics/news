@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+import brief.lib.nsf_award_search as ns
 from brief.lib.nsf_award_search import (
     DEFAULT_BASE_URL,
     NSFSearchError,
@@ -375,6 +376,20 @@ def test_search_ignores_today_when_date_end_was_given(nsf_stub):
 
 
 def test_search_returns_normalized_awards_from_a_saved_response(nsf_stub):
+    """The saved page is itself evidence of the defect this module corrects.
+
+    It is a real NSF response to ``awardeeName=Tuskegee University`` and it
+    contains an award to the University of Colorado at Boulder. Asking for one
+    institution and being handed another is exactly what ``matches_awardee``
+    exists to catch, so the foreign record must be filtered out here — and the
+    assertion below checks it is present in the fixture, so this test proves
+    filtering happened rather than that the fixture happened to be clean.
+    """
+    awardees = [a["awardeeName"] for a in PAGE["response"]["award"]]
+    assert "University of Colorado at Boulder" in awardees, (
+        "the fixture must keep the foreign record; it is the evidence"
+    )
+
     nsf_stub.route("/awards.json", PAGE)
     got = search_nsf_awards(
         awardee="Tuskegee University",
@@ -382,10 +397,23 @@ def test_search_returns_normalized_awards_from_a_saved_response(nsf_stub):
         date_end=MAR31,
         base_url=nsf_stub.url + "/awards.json",
     )
-    assert [a["external_id"] for a in got] == ["2500122", "2619699"]
+    assert [a["external_id"] for a in got] == ["2500122"]
     assert got[0]["pi_name"] == "Alex Doe"
-    assert got[1]["amount"] == "399174"
     assert got[0]["raw"]["awardeeName"] == "Tuskegee University"
+
+
+def test_the_same_saved_response_keeps_everything_for_a_keyword_search(nsf_stub):
+    """No institution asked for, so nothing is filtered — including the amount
+    assertion that used to live on the record now dropped above."""
+    nsf_stub.route("/awards.json", PAGE)
+    got = search_nsf_awards(
+        keyword="anything",
+        date_start=JAN1,
+        date_end=MAR31,
+        base_url=nsf_stub.url + "/awards.json",
+    )
+    assert [a["external_id"] for a in got] == ["2500122", "2619699"]
+    assert got[1]["amount"] == "399174"
 
 
 def test_search_returns_an_empty_list_when_nothing_matches(nsf_stub):
@@ -867,3 +895,93 @@ def test_search_does_not_send_a_blank_filter_over_the_wire(nsf_stub):
     sent = query_of(nsf_stub.last())
     assert sent["keyword"] == ["cryo-em"]
     assert "awardeeName" not in sent and "pdPIName" not in sent
+
+
+# --- the institution filter, corrected after a live run returned 159 --------
+
+
+@pytest.mark.parametrize(
+    "record_name,wanted,expected",
+    [
+        ("Iowa State University", "Iowa State University", True),
+        ("Iowa State University of Science and Technology", "Iowa State University", True),
+        ("IOWA  STATE   UNIVERSITY.", "Iowa State University", True),
+        ("Louisiana State University", "Iowa State University", False),
+        ("University of Iowa", "Iowa State University", False),
+        ("Ohio State University", "Iowa State University", False),
+        ("Anything at all", None, True),
+        ("Anything at all", "   ", True),
+        (None, "Iowa State University", False),
+    ],
+)
+def test_matches_awardee(record_name, wanted, expected):
+    assert ns.matches_awardee(record_name, wanted) is expected
+
+
+def test_awardee_state_is_sent_as_the_exact_filter():
+    url = ns.build_query_url(
+        "https://example.test/awards.json",
+        awardee="Iowa State University",
+        awardee_state="IA",
+        keyword=None,
+        pi_name=None,
+        date_start=datetime.date(2026, 9, 1),
+        date_end=datetime.date(2026, 9, 17),
+    )
+    assert "awardeeStateCode=IA" in url
+    assert "awardeeName=Iowa+State+University" in url, "both are sent; only one is exact"
+
+
+def test_no_state_means_no_state_parameter():
+    url = ns.build_query_url(
+        "https://example.test/awards.json",
+        awardee="Iowa State University",
+        awardee_state=None,
+        keyword=None,
+        pi_name=None,
+        date_start=datetime.date(2026, 9, 1),
+        date_end=datetime.date(2026, 9, 17),
+    )
+    assert "awardeeStateCode" not in url
+
+
+def test_awards_from_other_institutions_are_discarded(nsf_stub):
+    """The defect this corrects: NSF answered an institution search with 159."""
+    page = {
+        "response": {
+            "award": [
+                {"id": "1", "title": "Ours", "awardeeName": "Iowa State University", "date": "09/01/2026"},
+                {"id": "2", "title": "Theirs", "awardeeName": "Louisiana State University", "date": "09/02/2026"},
+                {"id": "3", "title": "Also theirs", "awardeeName": "University of Iowa", "date": "09/03/2026"},
+            ]
+        }
+    }
+    nsf_stub.route("/awards.json", page)
+    got = ns.search_nsf_awards(
+        awardee="Iowa State University",
+        awardee_state="IA",
+        date_start=datetime.date(2026, 9, 1),
+        date_end=datetime.date(2026, 9, 17),
+        base_url=nsf_stub.url + "/awards.json",
+    )
+    assert [a["title"] for a in got] == ["Ours"]
+
+
+def test_without_an_awardee_every_record_is_kept(nsf_stub):
+    """A keyword search must not be narrowed by an institution nobody asked for."""
+    page = {
+        "response": {
+            "award": [
+                {"id": "1", "title": "A", "awardeeName": "Iowa State University", "date": "09/01/2026"},
+                {"id": "2", "title": "B", "awardeeName": "Louisiana State University", "date": "09/02/2026"},
+            ]
+        }
+    }
+    nsf_stub.route("/awards.json", page)
+    got = ns.search_nsf_awards(
+        keyword="maize",
+        date_start=datetime.date(2026, 9, 1),
+        date_end=datetime.date(2026, 9, 17),
+        base_url=nsf_stub.url + "/awards.json",
+    )
+    assert [a["title"] for a in got] == ["A", "B"]

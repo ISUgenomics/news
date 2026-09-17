@@ -9,7 +9,10 @@ sources:
   - isu_research_news
   - isu_news_service
   - changedetection
-  - nsf: {awardee: "Iowa State University"}
+  # awardee_state is what makes this exact: NSF's awardeeName filter matches
+  # any word, so "Iowa State University" alone returns every institution with
+  # "University" in its name.
+  - nsf: {awardee: "Iowa State University", awardee_state: "IA"}
   - nih: {org_names: ["IOWA STATE UNIVERSITY"]}
   - usaspending: {recipient: "IOWA STATE UNIVERSITY"}
 

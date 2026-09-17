@@ -15,8 +15,28 @@ url, title, body, published_at (ISO date), pi_name, awardee, amount,
 agency, program, raw. amount is the API's JSON value verbatim; nothing is
 parsed into a number because a brief quotes dollar figures, it never
 computes them. raw is the untouched record so a caller can store it and
-re-normalize later. build_query_url() and normalize_award() are pure and
-exported so the query string and the field mapping are pinned by fixtures.
+re-normalize later. build_query_url(), normalize_award() and matches_awardee() are pure and
+exported so the query string, the field mapping and the institution rule are
+each pinned by fixtures.
+
+**awardeeName is not an exact filter, and this module corrects for that.**
+NSF splits the value into words and matches any of them, so a search for
+a university by name comes back with awards from every institution
+sharing any word in it — typically the word "University". Measured
+against the live API: one month's search for a single named university
+returned 308 awards across 159 distinct institutions, and the one asked
+for was not among the eight most frequent. So ``awardee`` is enforced
+twice: sent to the API, where it narrows nothing reliably, and applied
+again to every record that comes back, where it decides. A caller asking
+for one institution gets that institution or nothing.
+
+``awardee_state`` is the companion, and the pairing is the point.
+``awardeeStateCode`` *is* exact, so passing both turns the same search from
+hundreds of unrelated awards into a small set that is cheap to page
+through: over one 90-day window a single state code returned 68 awards
+across 4 institutions rather than several hundred across 159. Without it
+the local filter still gives a correct answer, just after fetching and
+discarding far more.
 
 The date filter is NSF's dateStart/dateEnd pair, which filters on the
 award's *effective date* — the `date` field of a record, the one mapped to
@@ -69,6 +89,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -92,6 +113,31 @@ class NSFSearchError(RuntimeError):
     """A request to the NSF Award Search API did not yield usable awards."""
 
 
+def normalize_institution(name: str | None) -> str:
+    """Casefold, strip punctuation, collapse whitespace. For comparison only."""
+    return " ".join(re.sub(r"[^\w\s]", " ", (name or "")).casefold().split())
+
+
+def matches_awardee(record_name: str | None, wanted: str | None) -> bool:
+    """Does this award's awardee actually match what was asked for?
+
+    Exported and pure because it is the correction for a real NSF behaviour and
+    therefore needs its own tests: ``awardeeName`` is not an exact filter. NSF
+    splits it into words and matches any of them, so a search for one named
+    university returns awards from every institution sharing a word with it —
+    measured at 159 distinct institutions in one month's window, the one asked
+    for not among the most frequent.
+
+    Matching is substring on the normalized form, so a short institution name
+    also matches the longer legal name an agency may record ("… University"
+    against "… University of Science and Technology"). ``wanted`` of None
+    matches everything, which is what "no awardee filter" means.
+    """
+    if not wanted or not wanted.strip():
+        return True
+    return normalize_institution(wanted) in normalize_institution(record_name)
+
+
 def build_query_url(
     base_url: str,
     *,
@@ -100,6 +146,7 @@ def build_query_url(
     pi_name: str | None,
     date_start: datetime.date,
     date_end: datetime.date,
+    awardee_state: str | None = None,
     offset: int = 0,
     rpp: int = PAGE_SIZE,
 ) -> str:
@@ -108,12 +155,17 @@ def build_query_url(
     Pure, and the parameter order is fixed, so a golden test can pin the exact
     query string. Filters that are None or blank are left out entirely — NSF
     treats an empty ``keyword=`` as a filter that matches nothing.
+
+    ``awardee_state`` becomes ``awardeeStateCode``, which unlike ``awardeeName``
+    *is* an exact filter. Pairing the two is what turns an institution search
+    from hundreds of unrelated awards into a small exact set.
     """
     params: list[tuple[str, str]] = []
     for name, value in (
         ("keyword", keyword),
         ("awardeeName", awardee),
         ("pdPIName", pi_name),
+        ("awardeeStateCode", awardee_state),
     ):
         if value and value.strip():
             params.append((name, value))
@@ -160,6 +212,7 @@ def normalize_award(raw: dict) -> dict:
 def search_nsf_awards(
     *,
     awardee: str | None = None,
+    awardee_state: str | None = None,
     keyword: str | None = None,
     pi_name: str | None = None,
     date_start: datetime.date,
@@ -202,6 +255,7 @@ def search_nsf_awards(
         url = build_query_url(
             base_url,
             awardee=awardee,
+            awardee_state=awardee_state,
             keyword=keyword,
             pi_name=pi_name,
             date_start=date_start,
@@ -210,7 +264,13 @@ def search_nsf_awards(
             rpp=PAGE_SIZE,
         )
         records = _fetch_page(url, timeout_s=timeout_s, user_agent=user_agent)
-        awards.extend(normalize_award(record) for record in records)
+        # NSF's awardeeName is not an exact filter, so the institution the
+        # caller asked for is enforced here, on what actually came back.
+        awards.extend(
+            normalize_award(record)
+            for record in records
+            if matches_awardee(record.get("awardeeName"), awardee)
+        )
         if len(records) < PAGE_SIZE:
             break
         offset += len(records)
