@@ -1,0 +1,74 @@
+[
+  {
+    "slug": "cli-llm-providers",
+    "package": "cli_llm_providers",
+    "tier": "verified",
+    "vendored": "2026-09-17",
+    "dependencies": [],
+    "files": {
+      "__init__.py": "aec3a3102e7dea47",
+      "providers.py": "deb626d85d5af8f1"
+    }
+  },
+  {
+    "slug": "ollama-local-llm",
+    "package": "ollama_local_llm",
+    "tier": "verified",
+    "vendored": "2026-09-17",
+    "dependencies": [],
+    "files": {
+      "__init__.py": "e6cb3cd6970058cf",
+      "provider.py": "1a924a7e90dc4f47"
+    }
+  },
+  {
+    "slug": "sqlite-versioned-schema",
+    "package": "sqlite_versioned_schema",
+    "tier": "verified",
+    "vendored": "2026-09-17",
+    "dependencies": [],
+    "files": {
+      "__init__.py": "3e59337635103e4d",
+      "core.py": "54c19de747571006"
+    }
+  },
+  {
+    "slug": "layered-config-overlay",
+    "package": "layered_config_overlay",
+    "tier": "verified",
+    "vendored": "2026-09-17",
+    "dependencies": [],
+    "files": {
+      "__init__.py": "385d69b3385f87d3",
+      "core.py": "c78942d9b7614434"
+    }
+  },
+  {
+    "slug": "secret-redaction",
+    "package": "secret_redaction",
+    "tier": "verified",
+    "vendored": "2026-09-17",
+    "dependencies": [],
+    "files": {
+      "__init__.py": "85da2cda93d2e66f",
+      "redactor.py": "407b1e756b365f27",
+      "rules.py": "79c1b905b55d22d2"
+    }
+  },
+  {
+    "slug": "secret-scanner",
+    "package": "secret_scanner",
+    "tier": "verified",
+    "vendored": "2026-09-17",
+    "dependencies": [],
+    "files": {
+      "__init__.py": "f1322e2aa4c0c2d3",
+      "__main__.py": "c9bf4454dfb3ef67",
+      "cli.py": "808942f4350ebcaf",
+      "models.py": "fa43bffd8fc48818",
+      "patterns.py": "d291f23a6e45ac26",
+      "report.py": "96643ebf8b8a4b41",
+      "scanner.py": "aa7d9a6b4b830f94"
+    }
+  }
+]
