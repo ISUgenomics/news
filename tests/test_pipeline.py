@@ -843,3 +843,83 @@ def test_a_self_merge_is_rejected(conn):
         run(conn, make_profile(), provider)
 
     assert "unique" in str(caught.value).lower()
+
+
+# --- which model wrote this brief --------------------------------------------
+
+
+class OllamaShapedProvider(StubProvider):
+    """Ollama names its model through a method, not an attribute."""
+
+    name = "ollama"
+
+    def __init__(self, *replies: str, chat: str | None = "qwen3.8:27b-mlx", **kw):
+        super().__init__(*replies, **kw)
+        self._chat = chat
+
+    def chat_model(self) -> str | None:
+        return self._chat
+
+
+class CLIShapedProvider(StubProvider):
+    """A coding CLI carries `model`, which is None when it picks its own."""
+
+    name = "claude-cli"
+
+    def __init__(self, *replies: str, model: str | None = None, **kw):
+        super().__init__(*replies, **kw)
+        self.model = model
+
+
+def test_the_model_recorded_is_the_model_not_the_provider(conn):
+    """`briefs.model` said "ollama" on every stored row, because the provider
+    exposes chat_model() and the old lookup wanted a `model` attribute, then
+    fell back to the provider name. A model column that reads like an answer
+    but names the provider is worse than an empty one: nobody goes looking."""
+    provider = OllamaShapedProvider(good_reply())
+    _, result, _ = run(conn, make_profile(), provider)
+
+    assert result.model == "qwen3.8:27b-mlx"
+    assert result.model != provider.name
+
+
+def test_a_cli_provider_records_the_model_it_was_given(conn):
+    _, result, _ = run(conn, make_profile(), CLIShapedProvider(good_reply(), model="opus"))
+    assert result.model == "opus"
+
+
+def test_an_unknown_model_is_recorded_as_unknown_never_as_the_provider(conn):
+    """A CLI left on its own default genuinely did not tell us. `provider`
+    already records which CLI it was, so "unknown" is the honest cell."""
+    for provider in (
+        CLIShapedProvider(good_reply(), model=None),
+        OllamaShapedProvider(good_reply(), chat=None),
+    ):
+        _, result, _ = run(conn, make_profile(), provider)
+        assert result.model == "unknown", f"{provider.name} recorded {result.model!r}"
+
+
+def test_the_model_survives_into_the_stored_row(conn):
+    """Through record_brief, not just the Synthesis object. The column is only
+    worth anything if what is queried later carries it."""
+    profile = make_profile()
+    _, result, page = run(conn, profile, OllamaShapedProvider(good_reply()))
+    db.record_brief(
+        conn,
+        profile=profile.name,
+        week_start=WEEK,
+        generated_at=NOW,
+        provider=result.provider_name,
+        model=result.model,
+        prompt_hash=result.prompt_hash,
+        input_item_ids=[1],
+        raw_response=result.raw_response,
+        result_json=json.dumps(result.result),
+        markdown=page.markdown,
+    )
+
+    stored = conn.execute(
+        "SELECT provider, model FROM briefs WHERE profile=? AND week_start=?",
+        (profile.name, WEEK),
+    ).fetchone()
+    assert tuple(stored) == ("ollama", "qwen3.8:27b-mlx")

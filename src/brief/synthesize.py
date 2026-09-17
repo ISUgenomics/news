@@ -31,7 +31,7 @@ from brief.lib.llm_json_contract import (
     complete_json,
     jsonschema_validator,
 )
-from brief.llm import supports_constrained_json
+from brief.llm import provider_model, supports_constrained_json
 from brief.models import Profile
 from brief.select import ITEM_RENDER_VERSION, Selection
 
@@ -190,9 +190,7 @@ def synthesize(
         system_prompt=system_prompt,
         attempts=outcome.attempts,
         provider_name=str(getattr(provider, "name", "unknown")),
-        model=str(
-            getattr(provider, "model", None) or getattr(provider, "name", "unknown")
-        ),
+        model=provider_model(provider),
     )
 
 

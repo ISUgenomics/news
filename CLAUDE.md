@@ -101,6 +101,10 @@ before a commit.
 
 ## Schema, verbatim
 
+**Four tables.** One SQLite file is the seam between the commands: `ingest` writes `items`,
+`synthesize` reads them and writes `briefs`, `deliver` reads a brief and stamps `sent_at`.
+Every idempotency claim in rule 1 is a constraint here, not application logic.
+
 ```sql
 CREATE TABLE items (
   id INTEGER PRIMARY KEY, source TEXT NOT NULL, source_key TEXT NOT NULL DEFAULT '',
@@ -108,13 +112,38 @@ CREATE TABLE items (
   published_at TEXT, fetched_at TEXT NOT NULL, content_hash TEXT NOT NULL,
   raw_json TEXT, facts_json TEXT, UNIQUE(source_key, content_hash));
 
+CREATE INDEX items_fetched_at ON items(fetched_at);
+CREATE INDEX items_source     ON items(source);
+CREATE INDEX items_source_key ON items(source_key);
+
 CREATE TABLE briefs (
   id INTEGER PRIMARY KEY, profile TEXT NOT NULL, week_start TEXT NOT NULL,
   generated_at TEXT NOT NULL, provider TEXT NOT NULL, model TEXT NOT NULL,
   prompt_hash TEXT NOT NULL, input_item_ids TEXT NOT NULL, raw_response TEXT NOT NULL,
   result_json TEXT NOT NULL, markdown TEXT NOT NULL, sent_at TEXT,
   UNIQUE(profile, week_start));
+
+CREATE TABLE source_state (
+  source_key TEXT PRIMARY KEY, etag TEXT, last_modified TEXT, updated_at TEXT NOT NULL);
+
+CREATE TABLE schema_version (version INTEGER PRIMARY KEY);
 ```
+
+`source_state` holds the cache validators, so an unchanged feed costs one conditional request
+instead of a refetch. Keyed by `source_key` for the same reason `items` is.
+
+`schema_version` is created by the vendored `sqlite-versioned-schema`, which **records a
+version and deliberately never migrates**. Its documented quirk: on an existing database the
+stored number is returned unchanged even when the DDL just added tables, so the stamp can read
+older than the schema actually present — the live database says 2 while `db.py` is at 3. That
+is not drift to fix. Both migrations (`_add_source_key_column`, `_add_facts_column`) are
+guarded on `PRAGMA table_info`, never on the stamp, precisely so a stale number cannot skip
+one. Do not add version-gated logic here without changing that.
+
+`briefs.model` is the model that wrote the page, not the provider that ran it — `provider`
+already records that. Asked via `llm.provider_model()`, because the CLIs carry a `model`
+attribute and Ollama answers `chat_model()`. When neither knows, the cell is `unknown`: a
+model column reading `ollama` looks like an answer, so nobody goes looking for the real one.
 
 `content_hash` = `sha256(source_key + url + normalized body)`. Dedup is
 `ON CONFLICT(source_key, content_hash) DO NOTHING` — named, not `INSERT OR IGNORE`, which

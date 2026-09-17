@@ -217,16 +217,27 @@ That chain is why a brief can be forwarded without the sender vouching for it pe
   │ facts_json    TEXT           │        │ sent_at       TEXT           │
   └──────────────────────────────┘        └──────────────────────────────┘
 
-  ┌──────────────────────────────┐
-  │ source_state                 │   cache validators, so an unchanged
-  ├──────────────────────────────┤   feed costs one conditional request
-  │ source_key    TEXT PK        │
-  │ etag          TEXT           │
-  │ last_modified TEXT           │
-  │ updated_at    TEXT           │
-  └──────────────────────────────┘
+  ┌──────────────────────────────┐        ┌──────────────────────────────┐
+  │ source_state                 │        │ schema_version               │
+  ├──────────────────────────────┤        ├──────────────────────────────┤
+  │ source_key    TEXT PK        │        │ version       INTEGER PK     │
+  │ etag          TEXT           │        └──────────────────────────────┘
+  │ last_modified TEXT           │        created by the vendored
+  │ updated_at    TEXT           │        sqlite-versioned-schema, which
+  └──────────────────────────────┘        records a version and never
+  cache validators, so an unchanged       migrates. Reads 2 while db.py is
+  feed costs one conditional request      at 3, by that helper's documented
+                                          design; the two migrations are
+                                          guarded on PRAGMA table_info,
+                                          never on this number.
 
   [U] = part of a UNIQUE constraint
+
+  briefs.model is the MODEL that wrote the page, never the provider that ran
+  it — provider already records that. Asked via llm.provider_model(), because
+  the CLIs carry a `model` attribute and Ollama answers chat_model(). Neither
+  knows -> `unknown`, because a model column reading "ollama" looks like an
+  answer and stops anyone looking for the real one.
 
   content_hash = sha256(source_key + url + normalized body)
   dedup        = ON CONFLICT(source_key, content_hash) DO NOTHING

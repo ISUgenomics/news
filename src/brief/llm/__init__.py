@@ -81,6 +81,37 @@ def supports_constrained_json(provider: Any) -> bool:
     )
 
 
+def provider_model(provider: Any) -> str:
+    """The model name to record against a stored brief.
+
+    Providers spell it two ways and neither is the Protocol's business: the
+    coding CLIs carry a `model` attribute that is None when the CLI picks its
+    own default, and Ollama resolves one through `chat_model()`, by discovery
+    when config did not name it. Both are asked, in that order.
+
+    Returns "unknown" when neither answers, and deliberately NOT the provider
+    name. `briefs.provider` already records that, and a model column reading
+    "ollama" is worse than one reading "unknown": it looks like an answer, so
+    nobody goes looking for the real one. The column exists so a brief can be
+    traced to the model that wrote it — a 3B and a 27B produce very different
+    pages from the same prompt hash.
+    """
+    named = getattr(provider, "model", None)
+    if isinstance(named, str) and named.strip():
+        return named.strip()
+
+    resolve = getattr(provider, "chat_model", None)
+    if callable(resolve):
+        try:
+            resolved = resolve()
+        except Exception:
+            resolved = None
+        if isinstance(resolved, str) and resolved.strip():
+            return resolved.strip()
+
+    return "unknown"
+
+
 def _sampler_options(cfg: Mapping[str, Any]) -> dict[str, Any] | None:
     """Ollama sampler settings, defaulting to a reproducible answer.
 
