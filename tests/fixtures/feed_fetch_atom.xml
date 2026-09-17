@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Atom Only Updated</title>
+  <entry>
+    <id>tag:example.edu,2026:a1</id>
+    <title>Atom entry with a relative link</title>
+    <link rel="alternate" type="text/html" href="/articles/a1"/>
+    <updated>2026-09-15T08:00:00Z</updated>
+    <summary type="html">&lt;div&gt;Summary   with    runs of spaces &amp;amp; an entity.&lt;/div&gt;</summary>
+  </entry>
+</feed>

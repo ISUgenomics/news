@@ -1,0 +1,23 @@
+{
+  "header": {
+    "type": "esearch",
+    "version": "0.3"
+  },
+  "esearchresult": {
+    "count": "58",
+    "retmax": "3",
+    "retstart": "0",
+    "idlist": [
+      "38427914",
+      "38427606",
+      "38426620"
+    ],
+    "translationset": [
+      {
+        "from": "genome",
+        "to": "\"genome\"[MeSH Terms] OR \"genome\"[All Fields] OR \"genomes\"[All Fields] OR \"genome's\"[All Fields] OR \"genomically\"[All Fields] OR \"genomics\"[MeSH Terms] OR \"genomics\"[All Fields] OR \"genomic\"[All Fields]"
+      }
+    ],
+    "querytranslation": "\"maize\"[Title] AND (\"genome\"[MeSH Terms] OR \"genome\"[All Fields] OR \"genomes\"[All Fields] OR \"genome s\"[All Fields] OR \"genomically\"[All Fields] OR \"genomics\"[MeSH Terms] OR \"genomics\"[All Fields] OR \"genomic\"[All Fields]) AND 2024/01/01:2024/03/01[Date - Entry]"
+  }
+}

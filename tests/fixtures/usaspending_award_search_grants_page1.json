@@ -1,0 +1,45 @@
+{
+ "spending_level": "awards",
+ "limit": 100,
+ "results": [
+  {
+   "internal_id": 270149383,
+   "Award ID": "R01AI182256",
+   "Recipient Name": "IOWA STATE UNIVERSITY OF SCIENCE AND TECHNOLOGY",
+   "Start Date": "2025-02-24",
+   "End Date": "2030-01-31",
+   "Award Amount": 1341064.0,
+   "Awarding Agency": "Department of Health and Human Services",
+   "Awarding Sub Agency": "National Institutes of Health",
+   "Award Type": "PROJECT GRANT (B)",
+   "Description": "MOSQUITO EXTRACELLULAR VESICLES IN MALARIA PARASITE KILLING AND IMMUNE PRIMING - PROJECT SUMMARY MALARIA HAS HAD DEVASTATING IMPACTS ON HUMAN HEALTH AND ECONOMIC DEVELOPMENT THROUG",
+   "awarding_agency_id": 806,
+   "agency_slug": "department-of-health-and-human-services",
+   "generated_internal_id": "ASST_NON_R01AI182256_075"
+  },
+  {
+   "internal_id": 260348159,
+   "Award ID": "DEAR0001989",
+   "Recipient Name": "IOWA STATE UNIVERSITY OF SCIENCE AND TECHNOLOGY",
+   "Start Date": "2025-01-10",
+   "End Date": "2028-01-09",
+   "Award Amount": 1189750.0,
+   "Awarding Agency": "Department of Energy",
+   "Awarding Sub Agency": "Department of Energy",
+   "Award Type": "COOPERATIVE AGREEMENT (B)",
+   "Description": "THIS COMPETITIVE COOPERATIVE AGREEMENT IS AWARDED TO IOWA STATE UNIVERSITY OF SCIENCE AND TECHNOLOGY FOR A PROJECT ENTITLED, ''FERRITIC AND VANADIUM ALLOYS WITH NANOPARTICLE STRENG",
+   "awarding_agency_id": 930,
+   "agency_slug": "department-of-energy",
+   "generated_internal_id": "ASST_NON_DEAR0001989_089"
+  }
+ ],
+ "page_metadata": {
+  "page": 1,
+  "hasNext": true,
+  "last_record_unique_id": 260348159,
+  "last_record_sort_value": "1189750"
+ },
+ "messages": [
+  "For searches, time period start and end dates are currently limited to an earliest date of 2007-10-01.  For data going back to 2000-10-01, use either the Custom Award Download feature on the website or one of our download or bulk_download API endpoints as listed on https://api.usaspending.gov/docs/endpoints. "
+ ]
+}

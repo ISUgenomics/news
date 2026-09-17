@@ -1,0 +1,28 @@
+{
+ "spending_level": "awards",
+ "limit": 100,
+ "results": [
+  {
+   "internal_id": 270149058,
+   "Award ID": "R01AI177540",
+   "Recipient Name": "IOWA STATE UNIVERSITY OF SCIENCE AND TECHNOLOGY",
+   "Start Date": "2025-01-17",
+   "End Date": "2029-12-31",
+   "Award Amount": 1145338.0,
+   "Awarding Agency": "Department of Health and Human Services",
+   "Awarding Sub Agency": "National Institutes of Health",
+   "Award Type": "PROJECT GRANT (B)",
+   "Description": "INFLUENCE OF PROSTAGLANDIN E2 ON INSECT INNATE IMMUNE FUNCTION - PROJECT SUMMARY PROSTAGLANDINS ARE IMPORTANT BIOACTIVE SIGNALING LIPIDS WITH KEY ROLES IN THE REGULATION OF INFLAMM",
+   "awarding_agency_id": 806,
+   "agency_slug": "department-of-health-and-human-services",
+   "generated_internal_id": "ASST_NON_R01AI177540_075"
+  }
+ ],
+ "page_metadata": {
+  "page": 2,
+  "hasNext": false,
+  "last_record_unique_id": 270149058,
+  "last_record_sort_value": "1145338"
+ },
+ "messages": []
+}

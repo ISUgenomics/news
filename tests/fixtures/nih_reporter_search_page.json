@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "search_id": "stub-search-id",
+    "total": 2,
+    "offset": 0,
+    "limit": 500,
+    "sort_field": "project_start_date",
+    "sort_order": "desc",
+    "properties": {}
+  },
+  "results": [
+    {
+      "appl_id": 10878415,
+      "subproject_id": null,
+      "fiscal_year": 2024,
+      "project_num": "1R24GM154192-01",
+      "core_project_num": "R24GM154192",
+      "award_amount": 7709519,
+      "direct_cost_amt": 5000000,
+      "indirect_cost_amt": 2709519,
+      "project_title": "NCCAT: National Center for CryoEM Access and Training",
+      "abstract_text": "This resource provides open access to cryo-electron microscopy.",
+      "project_start_date": "2024-09-01T00:00:00",
+      "project_end_date": "2029-08-31T00:00:00",
+      "award_notice_date": "2024-08-15T00:00:00",
+      "project_detail_url": "https://reporter.nih.gov/project-details/10878415",
+      "organization": {
+        "org_name": "IOWA STATE UNIVERSITY",
+        "org_city": "AMES",
+        "org_state": "IA",
+        "org_country": "UNITED STATES",
+        "dept_type": "BIOLOGY"
+      },
+      "agency_ic_admin": {
+        "code": "GM",
+        "abbreviation": "NIGMS",
+        "name": "National Institute of General Medical Sciences"
+      },
+      "principal_investigators": [
+        {
+          "profile_id": 5678901,
+          "first_name": "Ana",
+          "last_name": "Muñoz",
+          "full_name": "Ana Muñoz",
+          "is_contact_pi": true,
+          "title": "Professor"
+        },
+        {
+          "profile_id": 5678902,
+          "first_name": "Wei",
+          "last_name": "Zhang",
+          "full_name": "Wei Zhang",
+          "is_contact_pi": false,
+          "title": null
+        }
+      ]
+    },
+    {
+      "appl_id": 10999001,
+      "fiscal_year": 2023,
+      "project_num": "5R01AI123456-02",
+      "core_project_num": "R01AI123456",
+      "award_amount": 412000,
+      "project_title": "Machine learning for outbreak détection",
+      "abstract_text": "",
+      "project_start_date": "2023-04-01T00:00:00",
+      "project_end_date": "2026-03-31T00:00:00",
+      "award_notice_date": null,
+      "organization": {
+        "org_name": "IOWA STATE UNIVERSITY",
+        "org_city": "AMES",
+        "org_state": "IA"
+      },
+      "agency_ic_admin": {
+        "code": "AI",
+        "abbreviation": "NIAID",
+        "name": "National Institute of Allergy and Infectious Diseases"
+      },
+      "principal_investigators": [
+        {
+          "profile_id": 5678903,
+          "first_name": "Sam",
+          "last_name": "Carter",
+          "full_name": "Sam Carter",
+          "is_contact_pi": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Campus News</title>
+    <link>https://example.edu/news</link>
+    <item>
+      <title>R&#233;sum&#233; of the year &amp; beyond</title>
+      <link>https://example.edu/news/1</link>
+      <guid isPermaLink="false">urn:campus:1</guid>
+      <description>&lt;p&gt;Grant awarded to the &lt;b&gt;lab&lt;/b&gt;.&lt;/p&gt;
+      &lt;p&gt;Caf&#233;   talk   follows.&lt;/p&gt;</description>
+      <pubDate>Tue, 16 Sep 2026 14:30:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Second item, no link element</title>
+      <guid isPermaLink="false">urn:campus:2</guid>
+      <description>Plain text summary, no markup.</description>
+      <pubDate>Mon, 15 Sep 2026 09:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Third item, neither link nor guid</title>
+      <description>Unidentifiable and unfetchable.</description>
+    </item>
+  </channel>
+</rss>

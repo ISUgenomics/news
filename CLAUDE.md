@@ -25,7 +25,7 @@ Each module there is written to graduate into `~/AI/codeLibrary` one day.
 - The **module docstring is the design doc** — it states the contract and what the module
   deliberately does not do. The harvest scorer reads it. Keep it current with the code.
 - No top-level side effects, no environment reads at import, no hardcoded paths.
-- Every seed has a sibling test in `tests/lib/test_<module>.py` and an entry in `.lib/seeds.toml`.
+- Every seed has a sibling test in `tests/test_<module>.py` and an entry in `.lib/seeds.toml`.
 - Approved boundaries are in `docs/seeds/<slug>.md`. **Changing a boundary is a decision, not a
   refactor**: update that file in the same commit.
 

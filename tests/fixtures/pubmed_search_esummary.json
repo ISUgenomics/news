@@ -1,0 +1,454 @@
+{
+  "header": {
+    "type": "esummary",
+    "version": "0.3"
+  },
+  "result": {
+    "uids": [
+      "38427914",
+      "38427606",
+      "38426620"
+    ],
+    "38427914": {
+      "uid": "38427914",
+      "pubdate": "2024 May 7",
+      "epubdate": "",
+      "source": "G3 (Bethesda)",
+      "authors": [
+        {
+          "name": "LaPorte MF",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Suwarno WB",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Hannok P",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Koide A",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Bradbury P",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Crossa J",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Palacios-Rojas N",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Diepenbrock CH",
+          "authtype": "Author",
+          "clusterid": ""
+        }
+      ],
+      "lastauthor": "Diepenbrock CH",
+      "title": "Investigating genomic prediction strategies for grain carotenoid traits in a tropical/subtropical maize panel.",
+      "sorttitle": "investigating genomic prediction strategies for grain carotenoid traits in a tropical subtropical maize panel",
+      "volume": "14",
+      "issue": "5",
+      "pages": "",
+      "lang": [
+        "eng"
+      ],
+      "nlmuniqueid": "101566598",
+      "issn": "",
+      "essn": "2160-1836",
+      "pubtype": [
+        "Journal Article",
+        "Research Support, Non-U.S. Gov't",
+        "Research Support, U.S. Gov't, Non-P.H.S."
+      ],
+      "recordstatus": "PubMed - indexed for MEDLINE",
+      "pubstatus": "4",
+      "articleids": [
+        {
+          "idtype": "pubmed",
+          "idtypen": 1,
+          "value": "38427914"
+        },
+        {
+          "idtype": "pmc",
+          "idtypen": 8,
+          "value": "PMC11075567"
+        },
+        {
+          "idtype": "pmcid",
+          "idtypen": 5,
+          "value": "pmc-id: PMC11075567;"
+        },
+        {
+          "idtype": "doi",
+          "idtypen": 3,
+          "value": "10.1093/g3journal/jkae044"
+        },
+        {
+          "idtype": "pii",
+          "idtypen": 4,
+          "value": "7617434"
+        }
+      ],
+      "history": [
+        {
+          "pubstatus": "received",
+          "date": "2023/12/29 00:00"
+        },
+        {
+          "pubstatus": "accepted",
+          "date": "2024/02/22 00:00"
+        },
+        {
+          "pubstatus": "medline",
+          "date": "2024/05/07 13:45"
+        },
+        {
+          "pubstatus": "pubmed",
+          "date": "2024/03/01 18:44"
+        },
+        {
+          "pubstatus": "entrez",
+          "date": "2024/03/01 15:53"
+        },
+        {
+          "pubstatus": "pmc-release",
+          "date": "2024/03/01 00:00"
+        }
+      ],
+      "references": [],
+      "attributes": [
+        "Has Abstract"
+      ],
+      "pmcrefcount": 72,
+      "fulljournalname": "G3 (Bethesda, Md.)",
+      "elocationid": "doi: 10.1093/g3journal/jkae044",
+      "doctype": "citation",
+      "srccontriblist": [],
+      "booktitle": "",
+      "medium": "",
+      "edition": "",
+      "publisherlocation": "",
+      "publishername": "",
+      "srcdate": "",
+      "reportnumber": "",
+      "availablefromurl": "",
+      "locationlabel": "",
+      "doccontriblist": [],
+      "docdate": "",
+      "bookname": "",
+      "chapter": "",
+      "sortpubdate": "2024/05/07 00:00",
+      "sortfirstauthor": "LaPorte MF",
+      "vernaculartitle": ""
+    },
+    "38427606": {
+      "uid": "38427606",
+      "pubdate": "2024 Jul",
+      "epubdate": "2024 Jul 1",
+      "source": "Phytopathology",
+      "authors": [
+        {
+          "name": "Davis RF",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Harris-Shultz K",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Knoll JE",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Krakowsky M",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Scully B",
+          "authtype": "Author",
+          "clusterid": ""
+        }
+      ],
+      "lastauthor": "Scully B",
+      "title": "A Quantitative Trait Locus on Maize Chromosome 5 Is Associated with Root-Knot Nematode Resistance.",
+      "sorttitle": "quantitative trait locus on maize chromosome 5 is associated with root knot nematode resistance",
+      "volume": "114",
+      "issue": "7",
+      "pages": "1657-1663",
+      "lang": [
+        "eng"
+      ],
+      "nlmuniqueid": "9427222",
+      "issn": "0031-949X",
+      "essn": "",
+      "pubtype": [
+        "Journal Article"
+      ],
+      "recordstatus": "PubMed - indexed for MEDLINE",
+      "pubstatus": "256",
+      "articleids": [
+        {
+          "idtype": "pubmed",
+          "idtypen": 1,
+          "value": "38427606"
+        },
+        {
+          "idtype": "doi",
+          "idtypen": 3,
+          "value": "10.1094/PHYTO-08-23-0286-R"
+        }
+      ],
+      "history": [
+        {
+          "pubstatus": "medline",
+          "date": "2024/07/19 18:42"
+        },
+        {
+          "pubstatus": "pubmed",
+          "date": "2024/03/01 18:43"
+        },
+        {
+          "pubstatus": "entrez",
+          "date": "2024/03/01 13:12"
+        }
+      ],
+      "references": [],
+      "attributes": [
+        "Has Abstract"
+      ],
+      "pmcrefcount": "",
+      "fulljournalname": "Phytopathology",
+      "elocationid": "doi: 10.1094/PHYTO-08-23-0286-R",
+      "doctype": "citation",
+      "srccontriblist": [],
+      "booktitle": "",
+      "medium": "",
+      "edition": "",
+      "publisherlocation": "",
+      "publishername": "",
+      "srcdate": "",
+      "reportnumber": "",
+      "availablefromurl": "",
+      "locationlabel": "",
+      "doccontriblist": [],
+      "docdate": "",
+      "bookname": "",
+      "chapter": "",
+      "sortpubdate": "2024/07/01 00:00",
+      "sortfirstauthor": "Davis RF",
+      "vernaculartitle": ""
+    },
+    "38426620": {
+      "uid": "38426620",
+      "pubdate": "2024 May",
+      "epubdate": "2024 Mar 1",
+      "source": "New Phytol",
+      "authors": [
+        {
+          "name": "Zhang L",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Yuan L",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Wen Y",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Zhang M",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Huang S",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Wang S",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Zhao Y",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Hao X",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Li L",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Gao Q",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Wang Y",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Zhang S",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Huang S",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Liu K",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Yu X",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Li D",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Xu J",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Zhao B",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Zhang L",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Zhang H",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Zhou W",
+          "authtype": "Author",
+          "clusterid": ""
+        },
+        {
+          "name": "Ai C",
+          "authtype": "Author",
+          "clusterid": ""
+        }
+      ],
+      "lastauthor": "Ai C",
+      "title": "Maize functional requirements drive the selection of rhizobacteria under long-term fertilization practices.",
+      "sorttitle": "maize functional requirements drive the selection of rhizobacteria under long term fertilization practices",
+      "volume": "242",
+      "issue": "3",
+      "pages": "1275-1288",
+      "lang": [
+        "eng"
+      ],
+      "nlmuniqueid": "9882884",
+      "issn": "0028-646X",
+      "essn": "1469-8137",
+      "pubtype": [
+        "Journal Article",
+        "Research Support, Non-U.S. Gov't"
+      ],
+      "recordstatus": "PubMed - indexed for MEDLINE",
+      "pubstatus": "256",
+      "articleids": [
+        {
+          "idtype": "pubmed",
+          "idtypen": 1,
+          "value": "38426620"
+        },
+        {
+          "idtype": "doi",
+          "idtypen": 3,
+          "value": "10.1111/nph.19653"
+        }
+      ],
+      "history": [
+        {
+          "pubstatus": "received",
+          "date": "2023/06/06 00:00"
+        },
+        {
+          "pubstatus": "accepted",
+          "date": "2024/02/14 00:00"
+        },
+        {
+          "pubstatus": "medline",
+          "date": "2024/04/12 06:44"
+        },
+        {
+          "pubstatus": "pubmed",
+          "date": "2024/03/01 12:43"
+        },
+        {
+          "pubstatus": "entrez",
+          "date": "2024/03/01 08:16"
+        }
+      ],
+      "references": [],
+      "attributes": [
+        "Has Abstract"
+      ],
+      "pmcrefcount": "",
+      "fulljournalname": "The New phytologist",
+      "elocationid": "doi: 10.1111/nph.19653",
+      "doctype": "citation",
+      "srccontriblist": [],
+      "booktitle": "",
+      "medium": "",
+      "edition": "",
+      "publisherlocation": "",
+      "publishername": "",
+      "srcdate": "",
+      "reportnumber": "",
+      "availablefromurl": "",
+      "locationlabel": "",
+      "doccontriblist": [],
+      "docdate": "",
+      "bookname": "",
+      "chapter": "",
+      "sortpubdate": "2024/05/01 00:00",
+      "sortfirstauthor": "Zhang L",
+      "vernaculartitle": ""
+    }
+  }
+}

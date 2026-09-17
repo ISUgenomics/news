@@ -1,0 +1,28 @@
+{
+  "header": {"type": "esummary", "version": "0.3"},
+  "result": {
+    "uids": ["40000001"],
+    "40000001": {
+      "uid": "40000001",
+      "pubdate": "2026 Sep 3",
+      "epubdate": "",
+      "source": "Plant Physiol Biochem",
+      "authors": [
+        {"name": "Schön CC", "authtype": "Author", "clusterid": ""},
+        {"name": "Müller-Røed Ø", "authtype": "Author", "clusterid": ""}
+      ],
+      "lastauthor": "Müller-Røed Ø",
+      "title": "Effet des µmol photons m⁻² s⁻¹ sur la β-carotène du maïs — une étude.",
+      "volume": "212",
+      "issue": "4",
+      "pages": "109–117",
+      "elocationid": "doi: 10.1016/j.plaphy.2026.109117",
+      "articleids": [
+        {"idtype": "pubmed", "idtypen": 1, "value": "40000001"},
+        {"idtype": "doi", "idtypen": 3, "value": "10.1016/j.plaphy.2026.109117"}
+      ],
+      "fulljournalname": "Plant physiology and biochemistry",
+      "sortpubdate": "2026/09/03 00:00"
+    }
+  }
+}

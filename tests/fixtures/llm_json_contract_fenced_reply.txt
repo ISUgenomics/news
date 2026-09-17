@@ -1,0 +1,12 @@
+Here is the weekly brief you asked for:
+
+```json
+{
+  "headline": "Université de Montréal — naïve coöperation",
+  "entries": [
+    {"summary": "café 📈 growth", "item_ids": [1, 2]}
+  ]
+}
+```
+
+Let me know if you want it shorter.

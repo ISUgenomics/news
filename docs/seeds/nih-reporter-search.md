@@ -34,13 +34,35 @@ You need this week's new NIH projects for one institution, or for a field regard
 - the ~1 request/second RePORTER courtesy limit is honored by a sleep between pages, but the seed does not know the app's cron cadence or retry policy
 
 ## Public API
+
+Reconciled 2026-09-17 with the implementation, per CLAUDE.md rule 3. The drafted
+API named `ReporterError` and omitted the parameters the design critic asked for
+(`date_field`, `operator`, `search_field`, `page_delay_s`, sort control).
+
 ```python
-class ReporterError(RuntimeError): ...
-def build_criteria(*, org_names: list[str] | None = None, advanced_text_search: str | None = None, start_from: str | None = None, start_to: str | None = None, extra_criteria: dict | None = None) -> dict
-def search_projects(criteria: dict, *, base_url: str = "https://api.reporter.nih.gov", page_size: int = 500, max_records: int = 15_000, timeout_s: float = 30.0, user_agent: str = "nih-reporter-search/0.1", sleep: Callable[[float], None] = time.sleep) -> list[dict]
-def normalize_project(record: dict, *, detail_url_base: str = "https://reporter.nih.gov/project-details/") -> dict
-def fetch_projects(*, org_names: list[str] | None = None, advanced_text_search: str | None = None, start_from: str | None = None, start_to: str | None = None, base_url: str = "https://api.reporter.nih.gov", page_size: int = 500, max_records: int = 15_000, timeout_s: float = 30.0, sleep: Callable[[float], None] = time.sleep) -> list[dict]
+class NIHReporterError(RuntimeError): ...
+
+def build_criteria(*, org_names: list[str] | None = None, advanced_text_search: str | None = None,
+                   start_from: str | None = None, start_to: str | None = None,
+                   date_field: str = "project_start_date",   # or "award_notice_date" for "newly funded"
+                   operator: str = "and",
+                   search_field: str = "projecttitle,terms,abstracttext",
+                   extra_criteria: dict | None = None) -> dict
+
+def search_projects(criteria: dict, *, base_url: str = "https://api.reporter.nih.gov",
+                    page_size: int = 500, max_records: int = 15000, timeout_s: float = 30.0,
+                    user_agent: str = "nih-reporter-search/0.1",
+                    sleep: Callable[[float], None] = time.sleep, page_delay_s: float = 1.0,
+                    sort_field: str | None = "project_start_date", sort_order: str = "desc") -> list[dict]
+
+def normalize_project(record: dict, *,
+                      detail_url_base: str = "https://reporter.nih.gov/project-details/") -> dict
+
+def fetch_projects(**kwargs) -> list[dict]   # build_criteria + search_projects, same kwargs
 ```
+
+`fetch_projects` is kept as the one-call convenience the adapter uses; it is a passthrough,
+not a second code path.
 
 ## Test harness
 stub_http

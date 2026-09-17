@@ -1,0 +1,143 @@
+# Seeds planted in this project.
+#
+# A seed is a module written here but shaped from day one to graduate into
+# ~/AI/codeLibrary. This file is what lets a future session answer "which
+# seeds are ripe?" without re-reading source. A seed drops off this list
+# automatically once a library feature with the same slug exists.
+#
+# Graduation is not this file and is not automatic: /lib-harvest then
+# /lib-extract, run when a SECOND project wants the module.
+
+[[seed]]
+slug = "feed-fetch"
+path = "src/brief/lib/feed_fetch.py"
+test = "tests/test_feed_fetch.py"
+planted = "2026-09-17"
+band = "strong"
+score = 16
+tests = 39
+boundary = "docs/seeds/feed-fetch.md"
+when_to_use = "You poll public RSS or Atom feeds on a schedule and need unchanged feeds to cost one cheap request, bot-hostile sites to answer, and entries handed back as plain dicts your own store can keep."
+
+[[seed]]
+slug = "page-main-text"
+path = "src/brief/lib/page_main_text.py"
+test = "tests/test_page_main_text.py"
+planted = "2026-09-17"
+band = "strong"
+score = 16
+tests = 37
+boundary = "docs/seeds/page-main-text.md"
+when_to_use = "You have a URL whose page body you need as plain text — a feed entry too short to be useful, a link you want to read rather than render — and the site answers a default Python User-Agent with a rejection page."
+
+[[seed]]
+slug = "nsf-award-search"
+path = "src/brief/lib/nsf_award_search.py"
+test = "tests/test_nsf_award_search.py"
+planted = "2026-09-17"
+band = "strong"
+score = 22
+tests = 50
+boundary = "docs/seeds/nsf-award-search.md"
+when_to_use = "You need the list of NSF awards to an institution, on a topic, or to a named PI since a date, in a shape you can store, and do not want to learn the Award Search API's field names, date format, or 25-per-page offset walk."
+
+[[seed]]
+slug = "nih-reporter-search"
+path = "src/brief/lib/nih_reporter_search.py"
+test = "tests/test_nih_reporter_search.py"
+planted = "2026-09-17"
+band = "strong"
+score = 22
+tests = 54
+boundary = "docs/seeds/nih-reporter-search.md"
+when_to_use = "You need this week's new NIH projects for one institution, or for a field regardless of institution, and want them as plain dicts with paging and the 15,000-record ceiling already handled rather than a hand-rolled POST to RePORTER."
+
+[[seed]]
+slug = "usaspending-award-search"
+path = "src/brief/lib/usaspending_award_search.py"
+test = "tests/test_usaspending_award_search.py"
+planted = "2026-09-17"
+band = "strong"
+score = 22
+tests = 51
+boundary = "docs/seeds/usaspending-award-search.md"
+when_to_use = "You need federal award records for one institution or one research topic over a date range, including the agencies the NSF and NIH APIs do not cover, and you want plain dicts to store rather than a lesson in USAspending's filter grammar."
+
+[[seed]]
+slug = "pubmed-search"
+path = "src/brief/lib/pubmed_search.py"
+test = "tests/test_pubmed_search.py"
+planted = "2026-09-17"
+band = "strong"
+score = 19
+tests = 80
+boundary = "docs/seeds/pubmed-search.md"
+when_to_use = "You have a PubMed search expression and want the matching articles as plain records with their PMIDs, without a browser session, a saved-search feed id, or a login."
+
+[[seed]]
+slug = "keyword-relevance"
+path = "src/brief/lib/keyword_relevance.py"
+test = "tests/test_keyword_relevance.py"
+planted = "2026-09-17"
+band = "strong"
+score = 22
+tests = 47
+boundary = "docs/seeds/keyword-relevance.md"
+when_to_use = "You have a pile of fetched text records and a profile-style list of must-hit and must-not-hit terms, and need the survivors ordered by how strongly they hit before something expensive (an LLM call, a human) reads them."
+
+[[seed]]
+slug = "context-packer"
+path = "src/brief/lib/context_packer.py"
+test = "tests/test_context_packer.py"
+planted = "2026-09-17"
+band = "strong"
+score = 16
+tests = 53
+boundary = "docs/seeds/context-packer.md"
+when_to_use = "You have a ranked list of text snippets and a model whose context window you only know as a number, and you need to send as many as fit while telling the reader how many did not."
+
+[[seed]]
+slug = "llm-json-contract"
+path = "src/brief/lib/llm_json_contract.py"
+test = "tests/test_llm_json_contract.py"
+planted = "2026-09-17"
+band = "possible"
+score = 10
+tests = 42
+boundary = "docs/seeds/llm-json-contract.md"
+when_to_use = "You asked a text-only model (a coding CLI, a local Ollama box) for JSON and need a validated object back rather than a string that usually parses, with the raw replies kept for the week it does not."
+accepted_lower = "Scorer artifact, measured not assumed: removing the stdlib @dataclass(frozen=True) on ContractResult raises it from possible (10) to strong (16), exactly the -6 decorated-top-level-def penalty. That penalty targets framework coupling (@app.route, @click.command); a frozen value type is the opposite. Keeping the dataclass. The remaining gap is the one justified optional dependency, jsonschema, lazily imported."
+
+[[seed]]
+slug = "cited-digest-render"
+path = "src/brief/lib/cited_digest_render.py"
+test = "tests/test_cited_digest_render.py"
+planted = "2026-09-17"
+band = "strong"
+score = 16
+tests = 52
+boundary = "docs/seeds/cited-digest-render.md"
+when_to_use = "An LLM handed you a structured summary whose entries cite the ids of the inputs it saw, and the page you are about to publish must contain nothing that does not link back to a real source — with a count of what was cut, so a loosely citing model shows up in the numbers instead of silently thinning the page."
+
+[[seed]]
+slug = "markdown-email"
+path = "src/brief/lib/markdown_email.py"
+test = "tests/test_markdown_email.py"
+planted = "2026-09-17"
+band = "strong"
+score = 16
+tests = 48
+boundary = "docs/seeds/markdown-email.md"
+when_to_use = "A scheduled job produced a Markdown document and the people who need it read email, not repositories — it has to land in a mail client looking like a page while the raw Markdown stays in the message for anyone who greps, quotes, or replies."
+
+[[seed]]
+slug = "config-env-interpolate"
+path = "src/brief/lib/config_env_interpolate.py"
+test = "tests/test_config_env_interpolate.py"
+planted = "2026-09-17"
+band = "strong"
+score = 22
+tests = 57
+boundary = "docs/seeds/config-env-interpolate.md"
+when_to_use = "Your config file is checked into the repo and refers to secrets by name, and you need those references resolved before anything reads the values — with a missing variable stopping startup and naming where it was referenced, rather than a URL that silently contains the literal text `${TOKEN}`."
+
