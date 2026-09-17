@@ -71,8 +71,18 @@ A change to either gets a regenerated sample brief for every profile attached to
 
 ## 10. Secrets
 
-Only from the dotenv file, referenced in config as `${VAR}` and resolved by
-`lib/config_env_interpolate.py` against an env mapping passed in at the edge.
+Three sources, in this order, later winning: the process environment, a dotenv file,
+then the **macOS keychain**. The keychain is preferred because the value is not in a
+file at all, so it must not be overridden by a stale export.
+
+    security add-generic-password -s topic-brief -a CD_TOKEN -w
+
+A keychain that exists but cannot be read **stops the run**. Falling back would execute
+the job with whatever stale value was lying around and report success, which is the
+failure this path exists to remove. A keychain with no such entry is not an error.
+
+Referenced in config as `${VAR}` and resolved by `lib/config_env_interpolate.py`
+against an env mapping assembled at the edge.
 `config.yaml`, `sources.yaml`, and `profiles/` hold nothing secret. `briefs/` and
 `tests/fixtures/` are generated from text we did not write — `secret-scanner` runs over both
 before a commit.

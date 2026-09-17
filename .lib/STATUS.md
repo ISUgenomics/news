@@ -5,14 +5,14 @@
 # news — codeLibrary status
 
 **Repo:** `/Users/andrewseverin/AI/news`  
-**HEAD:** 0e7151b on `feat/scaffold`  
+**HEAD:** 4ce28ab on `feat/scaffold`  
 **Generated:** 2026-09-17 — refresh with `/lib-status`
 
 ## Extracted into codeLibrary
 
 None yet. `/lib-harvest` proposes candidates.
 
-## Seeds awaiting graduation (12)
+## Seeds awaiting graduation (13)
 
 Planted by `/lib-seed`, shaped for extraction, not extracted yet.
 
@@ -28,34 +28,35 @@ Planted by `/lib-seed`, shaped for extraction, not extracted yet.
 - `src/brief/lib/cited_digest_render.py` — planted 2026-09-17, band strong
 - `src/brief/lib/markdown_email.py` — planted 2026-09-17, band strong
 - `src/brief/lib/config_env_interpolate.py` — planted 2026-09-17, band strong
+- `src/brief/lib/macos_keychain_read.py` — planted 2026-09-17, band strong
 
 Graduate one when a second project wants it: `/lib-extract`
 
 ## Structure
 
-48 Python modules scanned.
+49 Python modules scanned.
 
 **Packages:** `brief`, `tests`
 
 **Entangled** — would rank `strong` if these imports were severed:
 
+- `src/brief/sources/nsf.py` — 13 → 18, sever 2 import(s)
 - `src/brief/sources/pubmed.py` — 13 → 18, sever 2 import(s)
 - `src/brief/sources/usaspending.py` — 13 → 18, sever 2 import(s)
 - `src/brief/vendor/secret_scanner/cli.py` — 10 → 18, sever 3 import(s)
-- `src/brief/db.py` — 11 → 16, sever 2 import(s)
 - `src/brief/profile.py` — 8 → 16, sever 3 import(s)
 - …and 2 more
 
 Untangle: `/lib-fix`
 
-## Worth extracting next (25)
+## Worth extracting next (27)
 
 - `src/brief/lib/config_env_interpolate.py` — strong (22)
 - `src/brief/lib/keyword_relevance.py` — strong (22)
+- `src/brief/lib/macos_keychain_read.py` — strong (22)
 - `src/brief/lib/nih_reporter_search.py` — strong (22)
 - `src/brief/lib/nsf_award_search.py` — strong (22)
-- `src/brief/lib/usaspending_award_search.py` — strong (22)
-- …and 20 more
+- …and 22 more
 
 Full ranking: `/lib-harvest`. The scan has never read a line of the code it ranks — expect some of it to be wrong.
 

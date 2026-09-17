@@ -8,6 +8,10 @@ for every profile. The first profile is a brief on AI activity at Iowa State.
 
 ```
 uv sync
+
+# Secrets: the keychain is preferred on macOS, so nothing lands in a file.
+security add-generic-password -s topic-brief -a CD_TOKEN -w
+
 uv run brief doctor                       # which LLM providers are reachable
 uv run brief ingest                       # all sources referenced by any enabled profile
 uv run brief synthesize --profile isu-ai

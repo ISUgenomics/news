@@ -12,6 +12,7 @@ defect before the fix.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 
 import pytest
@@ -40,6 +41,18 @@ def make_profile(**over) -> Profile:
     )
     base.update(over)
     return Profile(**base)
+
+
+@pytest.fixture(autouse=True)
+def no_keychain_by_default(monkeypatch):
+    """Keep the developer's real keychain out of every test in this file.
+
+    `read_env` consults the macOS keychain, so without this a secret stored on
+    the machine running the suite silently overrides a test's own fixture — two
+    dotenv tests failed exactly that way once a real CD_TOKEN existed. A test
+    that means to exercise the keychain turns it back on itself.
+    """
+    monkeypatch.setattr(cli, "is_available", lambda **kw: False)
 
 
 @pytest.fixture()
@@ -486,3 +499,73 @@ def test_a_broken_item_is_reported_not_counted_as_already_seen(tmp_path):
     with pytest.raises(Exception):
         db.upsert_items(conn, [Item(source="s", url=None, title="t")], now=NOW)
     conn.close()
+
+
+# --- secrets from the macOS keychain ---------------------------------------
+
+
+def test_the_keychain_is_consulted_and_wins_over_a_stale_dotenv(tmp_path, monkeypatch):
+    """The keychain is the one place the secret is not sitting in a file."""
+    (tmp_path / "env").write_text("CD_TOKEN=stale-from-a-file\n", encoding="utf-8")
+    monkeypatch.setenv("CD_TOKEN", "staler-from-the-shell")
+    monkeypatch.setattr(cli, "is_available", lambda **kw: True)
+    monkeypatch.setattr(cli, "read_secrets", lambda svc, names, **kw: {"CD_TOKEN": "from-keychain"})
+
+    assert cli.read_env(tmp_path)["CD_TOKEN"] == "from-keychain"
+
+
+def test_no_keychain_entry_leaves_the_other_sources_alone(tmp_path, monkeypatch):
+    (tmp_path / "env").write_text("CD_TOKEN=from-a-file\n", encoding="utf-8")
+    monkeypatch.setattr(cli, "is_available", lambda **kw: True)
+    monkeypatch.setattr(cli, "read_secrets", lambda svc, names, **kw: {})
+
+    assert cli.read_env(tmp_path)["CD_TOKEN"] == "from-a-file"
+
+
+def test_a_machine_without_the_keychain_tool_still_works(tmp_path, monkeypatch):
+    (tmp_path / "env").write_text("CD_TOKEN=from-a-file\n", encoding="utf-8")
+    monkeypatch.setattr(cli, "is_available", lambda **kw: False)
+
+    def explode(*a, **kw):
+        raise AssertionError("must not be called when the tool is absent")
+
+    monkeypatch.setattr(cli, "read_secrets", explode)
+    assert cli.read_env(tmp_path)["CD_TOKEN"] == "from-a-file"
+
+
+def test_an_unreadable_keychain_stops_the_run_rather_than_using_a_stale_value(
+    tmp_path, monkeypatch
+):
+    """Falling back would run the job without its real credential and call it success."""
+    (tmp_path / "env").write_text("CD_TOKEN=stale\n", encoding="utf-8")
+    monkeypatch.setattr(cli, "is_available", lambda **kw: True)
+
+    def locked(svc, names, **kw):
+        raise cli.KeychainError("could not read topic-brief/CD_TOKEN (exit 36): locked")
+
+    monkeypatch.setattr(cli, "read_secrets", locked)
+    with pytest.raises(cli.KeychainError):
+        cli.read_env(tmp_path)
+
+
+def test_the_secret_names_match_the_variables_config_refers_to():
+    """A keychain account and a ${VAR} reference must be the same word."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    def referenced_in(path):
+        # Values only. The header comments use ${VAR} as documentation, and a
+        # scan that counted those would demand a keychain entry named VAR.
+        body = "\n".join(
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if not line.lstrip().startswith("#")
+        )
+        return set(re.findall(r"\$\{(\w+)", body))
+
+    referenced = referenced_in(root / "sources.yaml") | referenced_in(root / "config.yaml")
+    assert referenced, "the fixture would be vacuous if config referenced nothing"
+    assert referenced <= set(cli.SECRET_NAMES), (
+        f"config refers to {referenced - set(cli.SECRET_NAMES)}, which the keychain "
+        f"lookup would never fetch"
+    )

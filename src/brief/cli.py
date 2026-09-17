@@ -30,6 +30,7 @@ from brief import (
 )
 from brief.deliver import AlreadySent, deliver as deliver_one
 from brief.lib.config_env_interpolate import MissingConfigVar
+from brief.lib.macos_keychain_read import KeychainError, is_available, read_secrets
 from brief.lib.llm_json_contract import JsonContractError
 from brief.models import Profile
 from brief.profile import (
@@ -52,20 +53,39 @@ def log(event: str, **fields: Any) -> None:
     print(json.dumps(payload, default=str), flush=True)
 
 
-def read_env(root: Path) -> dict[str, str]:
-    """Environment for `${VAR}` resolution: the process, then a dotenv file.
+#: Secrets this app may need. Named after the variables that consume them, so
+#: a keychain entry and a `${VAR}` reference in config are the same word.
+SECRET_NAMES = ("CD_TOKEN", "SMTP_USER", "SMTP_PASSWORD", "ANTHROPIC_API_KEY")
 
-    The file wins over the process so an operator can override a stale
-    exported value without hunting for the shell that set it. Values are never
-    logged.
+#: The generic-password service secrets live under. One entry per variable:
+#:     security add-generic-password -s topic-brief -a CD_TOKEN -w
+DEFAULT_KEYCHAIN_SERVICE = "topic-brief"
 
-    Read as ``utf-8-sig`` and tolerant of a leading ``export``, because both
-    are what people actually put in these files, and a variable silently lost
-    to a byte-order mark surfaces much later as a puzzling 401.
+
+def read_env(root: Path, *, keychain_service: str | None = None) -> dict[str, str]:
+    """Environment for `${VAR}` resolution, from three sources in this order.
+
+    1. The process environment.
+    2. A dotenv file beside the config, if there is one.
+    3. The macOS keychain, if it is available.
+
+    Later wins, so the keychain is the most authoritative. That ordering is
+    deliberate: the keychain is the one place a secret is not sitting in a file,
+    so once an operator has put it there it should not be silently overridden by
+    a stale export or an old dotenv left on disk.
+
+    A keychain that exists but cannot be read raises rather than falling back.
+    Falling back would run the job with whatever stale value was lying around
+    and call it success, which is the failure mode this whole path exists to
+    remove. A keychain with no such entry is not an error — that is simply a
+    secret configured somewhere else.
+
+    Values are never logged.
     """
     import os
 
     env = dict(os.environ)
+
     for name in (".env", "env"):
         path = root / name
         if not path.exists():
@@ -82,6 +102,11 @@ def read_env(root: Path) -> dict[str, str]:
                 continue
             env[key] = value.strip().strip('"').strip("'")
         break
+
+    service = keychain_service or DEFAULT_KEYCHAIN_SERVICE
+    if is_available():
+        env.update(read_secrets(service, SECRET_NAMES))
+
     return env
 
 
@@ -548,7 +573,10 @@ def doctor(root: Path = typer.Option(ROOT)) -> None:
         typer.secho(f"configuration error: {exc}", fg="red")
         if isinstance(exc, MissingConfigVar):
             typer.secho(
-                f"  set {exc.variable} in the environment or the dotenv file "
+                f"  store it in the keychain (preferred):\n"
+                f"    security add-generic-password -s {DEFAULT_KEYCHAIN_SERVICE} "
+                f"-a {exc.variable} -w\n"
+                f"  or set {exc.variable} in the environment or a dotenv file "
                 f"(see env.example)",
                 fg="yellow",
             )

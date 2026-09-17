@@ -141,3 +141,15 @@ tests = 57
 boundary = "docs/seeds/config-env-interpolate.md"
 when_to_use = "Your config file is checked into the repo and refers to secrets by name, and you need those references resolved before anything reads the values — with a missing variable stopping startup and naming where it was referenced, rather than a URL that silently contains the literal text `${TOKEN}`."
 
+[[seed]]
+slug = "macos-keychain-read"
+path = "src/brief/lib/macos_keychain_read.py"
+test = "tests/test_macos_keychain_read.py"
+planted = "2026-09-17"
+band = "strong"
+score = 22
+tests = 22
+boundary = "docs/seeds/macos-keychain-read.md"
+when_to_use = "Your program needs a token on a machine where you would rather not leave it in a dotenv file — a scheduled job on your own laptop, a personal tool — and you want 'no such secret' to be an ordinary answer rather than a crash."
+demand = "Second signal: ~/AI/utility/ClaudeUsageBar names macos-keychain-read as a sibling seed candidate, having implemented the same read in Swift."
+
