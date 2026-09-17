@@ -35,6 +35,26 @@ llm:
   # base_url: http://localhost:11434   # local only; a GPU box elsewhere
   timeout_s: 1800                      # a 27B model takes minutes, not seconds
 
+  # Reproducibility, as far as it goes. Ollama defaults to temperature 0.8 and a
+  # fresh random seed, so without these the same prompt returns materially
+  # different text every run — measured: two calls invented two different award
+  # titles. With them, measured over six runs of the real prompt: five were
+  # byte-identical and the sixth differed by one punctuation mark.
+  #
+  # So this buys "stable, not bit-identical". Metal/MLX reduction order varies
+  # with GPU scheduling, so a near-tie between two tokens can still flip. What
+  # stayed constant across all six runs was everything that matters: the amount,
+  # the PI, the citation, the claim. Do not promise byte-identical briefs; do
+  # expect a diff between two runs to show a real change rather than resampling.
+  # Set `seed: null` for variety.
+  seed: 42
+  temperature: 0
+
+  # How long the server holds the model after a request. The default is five
+  # minutes; a backfill that pauses between weeks can lose an 18 GB model in the
+  # gap and pay tens of seconds to reload it. Local provider only.
+  keep_alive: 30m
+
 select:
   chars_per_token: 4            # budgeting heuristic; no provider exposes a tokenizer
   output_reserve_tokens: 4000

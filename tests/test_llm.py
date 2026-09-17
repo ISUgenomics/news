@@ -147,3 +147,67 @@ def test_synthesize_imports_no_vendor_sdk():
         "ollama",
     ):
         assert banned not in source, f"synthesize.py must not know about {banned}"
+
+
+# --- reproducibility -------------------------------------------------------
+
+
+def test_the_local_provider_defaults_to_a_reproducible_sampler():
+    """Ollama defaults to temperature 0.8 and a fresh random seed.
+
+    Measured on a 27B model: without these, two identical calls invented two
+    different award titles. With them, five of six runs of the real prompt were
+    byte-identical and the sixth differed by one punctuation mark — Metal is not
+    bit-deterministic, so this buys stability rather than a guarantee. The
+    facts, citations and amounts were constant across all six.
+    """
+    provider = llm.get_provider({"provider": "local"})
+    assert provider.options["temperature"] == 0
+    assert provider.options["seed"] == 42
+    assert provider.options["top_k"] == 1
+
+
+def test_a_profile_may_choose_its_own_seed():
+    provider = llm.get_provider({"provider": "local", "seed": 7})
+    assert provider.options["seed"] == 7
+
+
+def test_a_null_seed_opts_back_out_of_reproducibility():
+    """Someone who wants variety should be able to have it."""
+    provider = llm.get_provider({"provider": "local", "seed": None})
+    assert provider.options is None
+
+
+def test_explicit_options_win_over_the_defaults():
+    provider = llm.get_provider(
+        {"provider": "local", "options": {"temperature": 0.7, "seed": 9}}
+    )
+    assert provider.options["temperature"] == 0.7
+    assert provider.options["seed"] == 9
+
+
+def test_keep_alive_reaches_the_provider():
+    """A backfill pausing between weeks can otherwise lose an 18 GB model."""
+    assert llm.get_provider({"provider": "local", "keep_alive": "30m"}).keep_alive == "30m"
+    assert llm.get_provider({"provider": "local"}).keep_alive is None
+
+
+def test_the_shipped_config_asks_for_a_reproducible_brief():
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    cfg = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))["llm"]
+    assert cfg["seed"] is not None, (
+        "a weekly report wants two runs over the same input to differ only when "
+        "something real changed"
+    )
+    assert cfg["temperature"] == 0
+    assert cfg["keep_alive"], "a backfill should not reload the model between weeks"
+
+
+def test_the_cli_providers_ignore_sampler_options():
+    """They hold their own settings; passing a seed must not break construction."""
+    provider = llm.get_provider({"provider": "claude-cli", "seed": 42, "keep_alive": "30m"})
+    assert provider.name == "claude-cli"

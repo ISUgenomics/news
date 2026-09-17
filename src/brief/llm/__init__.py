@@ -53,6 +53,30 @@ class LLMProvider(Protocol):
     def embed(self, texts: list[str]) -> list[list[float]] | None: ...
 
 
+def _sampler_options(cfg: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Ollama sampler settings, defaulting to a reproducible answer.
+
+    Ollama's own defaults are temperature 0.8 and a fresh random seed, so the
+    same prompt over the same items returns different text every run. That makes
+    the provenance this app stores — prompt_hash, input_item_ids,
+    ITEM_RENDER_VERSION — only structurally comparable: you can diff two briefs
+    entry by entry but you cannot tell a real change from resampling.
+
+    Pinning temperature and seed turns that into genuine reproducibility, which
+    is what a weekly report wants. `seed: null` in config opts back out for
+    anyone who would rather have variety.
+    """
+    llm_cfg = dict(cfg.get("options") or {})
+    if "seed" not in llm_cfg and "seed" in cfg:
+        if cfg["seed"] is None:
+            return llm_cfg or None
+        llm_cfg["seed"] = cfg["seed"]
+    llm_cfg.setdefault("temperature", cfg.get("temperature", 0))
+    llm_cfg.setdefault("seed", 42)
+    llm_cfg.setdefault("top_k", 1)
+    return llm_cfg
+
+
 class ProviderNotAvailable(RuntimeError):
     """A configured provider cannot be used. The message names the fix."""
 
@@ -83,6 +107,8 @@ def get_provider(llm: Mapping[str, Any] | None = None) -> LLMProvider:
             chat_model=model,
             request_timeout=float(timeout),
             context_window=cfg.get("context_window"),
+            options=_sampler_options(cfg),
+            keep_alive=cfg.get("keep_alive"),
         )
 
     if kind == "anthropic-api":

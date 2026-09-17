@@ -68,8 +68,26 @@ class OllamaProvider:
         context_window: int | None = None,
         connect_timeout: float = 3.0,
         request_timeout: float = 300.0,
+        options: dict | None = None,
+        keep_alive: str | float | None = None,
     ):
-        """Explicit model names skip discovery for that role entirely."""
+        """Explicit model names skip discovery for that role entirely.
+
+        ``options`` is passed straight through to Ollama's ``options`` object on
+        every chat call. It is the only way to reach the sampler, and the
+        defaults matter more than they look: Ollama uses temperature 0.8 and a
+        fresh random seed, so two identical requests return different text.
+        A caller that needs a reproducible answer passes
+        ``{"temperature": 0, "seed": 42, "top_k": 1}``; this module does not
+        choose that for you, because an interactive assistant wants the
+        opposite of a nightly report.
+
+        ``keep_alive`` is how long the server holds the model in memory after a
+        request — "30m", or seconds as a number, or 0 to unload at once. The
+        default is five minutes, which is short for a batch that does other work
+        between calls: a 27B model costs tens of seconds to reload and the
+        caller sees it as a mysteriously slow request.
+        """
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
         self._chat_model = chat_model or None
         self._embed_model = embed_model or None
@@ -79,6 +97,8 @@ class OllamaProvider:
         self.vision_hints = vision_hints
         self.chat_exclude = chat_exclude
         self._context_window = context_window
+        self.options = dict(options) if options else None
+        self.keep_alive = keep_alive
         self.connect_timeout = connect_timeout
         self.request_timeout = request_timeout
 
@@ -248,6 +268,7 @@ class OllamaProvider:
             # if you would rather keep it and strip it client-side
             "think": False,
         }
+        self._apply_call_options(payload)
         try:
             response = self._post("/api/chat", payload)
         except urllib.error.HTTPError:
@@ -264,6 +285,18 @@ class OllamaProvider:
                     yield token
                 if data.get("done"):
                     break
+
+    def _apply_call_options(self, payload: dict) -> None:
+        """Add ``options`` and ``keep_alive`` to a chat payload, when set.
+
+        Both are omitted entirely when unset rather than sent as null, because
+        older servers reject unknown nulls and the whole point of this module is
+        that a missing capability degrades rather than raises.
+        """
+        if self.options:
+            payload["options"] = dict(self.options)
+        if self.keep_alive is not None:
+            payload["keep_alive"] = self.keep_alive
 
     def complete(self, messages: list[dict]) -> str:
         """Convenience for callers that do not want an iterator."""
