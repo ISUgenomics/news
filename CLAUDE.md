@@ -91,9 +91,10 @@ before a commit.
 
 ```sql
 CREATE TABLE items (
-  id INTEGER PRIMARY KEY, source TEXT NOT NULL, external_id TEXT, url TEXT NOT NULL,
-  title TEXT NOT NULL, body TEXT, published_at TEXT, fetched_at TEXT NOT NULL,
-  content_hash TEXT NOT NULL, raw_json TEXT, UNIQUE(source, content_hash));
+  id INTEGER PRIMARY KEY, source TEXT NOT NULL, source_key TEXT NOT NULL DEFAULT '',
+  external_id TEXT, url TEXT NOT NULL, title TEXT NOT NULL, body TEXT,
+  published_at TEXT, fetched_at TEXT NOT NULL, content_hash TEXT NOT NULL,
+  raw_json TEXT, facts_json TEXT, UNIQUE(source_key, content_hash));
 
 CREATE TABLE briefs (
   id INTEGER PRIMARY KEY, profile TEXT NOT NULL, week_start TEXT NOT NULL,
@@ -103,7 +104,14 @@ CREATE TABLE briefs (
   UNIQUE(profile, week_start));
 ```
 
-`content_hash` = `sha256(source + url + normalized body)`. Upsert is `INSERT OR IGNORE`.
+`content_hash` = `sha256(source_key + url + normalized body)`. Dedup is
+`ON CONFLICT(source_key, content_hash) DO NOTHING` — named, not `INSERT OR IGNORE`, which
+would swallow a NOT NULL violation as "already seen".
+
+`source_key` identifies the **fetch**, not the source: `nsf` with no parameters, `nsf#7f784cd7`
+when a profile supplied some. Two profiles querying one endpoint differently must not see each
+other's rows. `facts_json` and `published_at` are derived from `raw_json` and are **not** in the
+hash, so `brief reindex` can rebuild them offline without creating a duplicate.
 
 ## Item, verbatim
 
@@ -113,10 +121,21 @@ class Item:
     source: str            # source name from sources.yaml
     url: str
     title: str
-    body: str = ""         # capped at 8 kB by db.py, not by the adapter
+    body: str = ""         # capped by ingest.body_cap_bytes in db.py, not by the adapter
     external_id: str | None = None   # award number, feed GUID, PMID
     published_at: str | None = None  # ISO 8601 from the source, if known
     raw: dict | None = None          # original record, stored as raw_json
+    facts: dict | None = None        # PI, Amount, Sponsor — quoted verbatim, order is display order
 ```
 
-`fetched_at` and `content_hash` are set by `db.py`, never by an adapter.
+`fetched_at`, `content_hash` and `source_key` are set by `db.py` and the ingest loop, never by
+an adapter.
+
+## 11. Five commands now, not four
+
+`brief reindex` rebuilds `facts` and `published_at` from the stored `raw_json`. Offline, no
+network, no new rows. Reach for it instead of deleting and refetching whenever a derived field
+changes: 1,310 rows in 0.24 seconds against three minutes of API calls.
+
+`brief backfill --since <date>` fills past weeks, selecting by **publication** date where the
+weekly run selects by fetch date. `synthesize --week <past>` is refused for exactly that reason.

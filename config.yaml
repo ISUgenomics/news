@@ -33,6 +33,25 @@ llm:
   model: qwen3.8:27b-mlx
 
   # base_url: http://localhost:11434   # local only; a GPU box elsewhere
+
+  # The window the packer is allowed to fill. The vendored provider caps its
+  # DISCOVERED value at 32768; this model declares 262144 and Ollama runs it at
+  # that size, so the window CAN be raised. Measured, it should not be:
+  #
+  #   32768 -> 21 of 59 items sent, 12 entries, 3 minutes
+  #   65536 -> 59 of 59 items sent, 34 entries, 1534 words, 17 minutes
+  #
+  # The 600-word limit, not the context window, is what bounds a one-page
+  # brief. Feeding the model everything did not make it choose better, it made
+  # it write more — two and a half times the length limit, five times the time.
+  # "43 of 59 items never reach the model" was the wrong problem statement: a
+  # one-page digest holds about a dozen entries however many candidates it sees.
+  # The real question is whether the best dozen are among the 21, which is a
+  # RANKING question, not a context one.
+  #
+  # Left commented rather than deleted: raise it if the length limit is ever
+  # enforced in code rather than asked for in the prompt.
+  # context_window: 65536
   timeout_s: 1800                      # a 27B model takes minutes, not seconds
 
   # Reproducibility, as far as it goes. Ollama defaults to temperature 0.8 and a
