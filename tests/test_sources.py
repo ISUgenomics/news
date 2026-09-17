@@ -400,3 +400,36 @@ def test_usaspending_has_no_pi_because_it_names_institutions(monkeypatch):
 
     assert "PI" not in items[0].facts, "this source names the institution, not a person"
     assert items[0].facts["Amount"] == "239160", "and not 239160.0"
+
+
+def test_usaspending_does_not_send_its_description_twice(monkeypatch):
+    """The seed sets title = description when no title_of is given, and body IS
+    that description — 1041 of 1041 rows shipped the same sentence twice. Rule 5
+    puts the fix in the adapter: the recipient, agency and amount a richer title
+    would carry are already in facts."""
+    import brief.sources.usaspending
+
+    record = {
+        "external_id": "1", "url": "https://x/1",
+        "title": "AI IN GENOMIC SELECTION", "body": "AI IN GENOMIC SELECTION",
+        "published_at": "2026-09-01", "raw": {}, "amount": 1000.0,
+    }
+    monkeypatch.setattr(brief.sources.usaspending, "search_awards", lambda **kw: [record])
+    (items, _) = fetch("usaspending", {"kind": "usaspending"}, {"recipient": "A"},
+                       since=SINCE, now=NOW)
+    assert items[0].title == "AI IN GENOMIC SELECTION"
+    assert items[0].body == "", "the duplicate prose is dropped at the adapter"
+
+
+def test_a_genuinely_different_description_is_kept(monkeypatch):
+    import brief.sources.usaspending
+
+    record = {
+        "external_id": "1", "url": "https://x/1", "title": "A short label",
+        "body": "A longer description that says something more.",
+        "published_at": "2026-09-01", "raw": {}, "amount": 1000.0,
+    }
+    monkeypatch.setattr(brief.sources.usaspending, "search_awards", lambda **kw: [record])
+    (items, _) = fetch("usaspending", {"kind": "usaspending"}, {"recipient": "A"},
+                       since=SINCE, now=NOW)
+    assert items[0].body.startswith("A longer description")

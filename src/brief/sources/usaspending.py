@@ -39,7 +39,14 @@ def fetch(
             source=source,
             url=r["url"],
             title=r["title"],
-            body=r.get("body") or "",
+            # The seed sets title = description when no title_of is supplied,
+            # and body IS that description, so sending both ships the same
+            # sentence twice — 1041 of 1041 rows. The recipient, agency and
+            # amount a richer title would carry are already in facts, so the
+            # honest shape is one label and no duplicate prose. Rule 5: this is
+            # the adapter's policy, not the seed's.
+            body="" if (r.get("body") or "").strip() == (r.get("title") or "").strip()
+            else (r.get("body") or ""),
             external_id=r.get("external_id"),
             published_at=r.get("published_at"),
             raw=r.get("raw"),

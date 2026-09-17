@@ -47,7 +47,7 @@ DEFAULT_MAX_ITEM_CHARS = 6000
 # it, changing how an item is presented to the model leaves the hash identical
 # over genuinely different input, and a regeneration diff would be misread as a
 # model difference.
-ITEM_RENDER_VERSION = 2  # v2 adds the labelled facts lines
+ITEM_RENDER_VERSION = 3  # v3 drops a body that merely repeats the title
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,6 +213,12 @@ def _render_for_prompt(candidate: Candidate) -> str:
         # the sponsor — so they are presented as labelled values rather than
         # buried in prose it would have to infer them from.
         header += "\n" + "\n".join(f"{k}: {v}" for k, v in candidate.facts.items())
+    # A body identical to the title is sent twice for no gain. The adapter
+    # should prevent it — rule 5 makes that its policy, and usaspending.py now
+    # does — but this stays as a generic net: any source can start echoing its
+    # title, and the cost of noticing late is budget spent on nothing.
     body = candidate.body.strip()
+    if body and body == candidate.title.strip():
+        body = ""
     text = f"{header}\n\n{body}" if body else header
     return redact(text)
