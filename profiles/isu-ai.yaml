@@ -1,0 +1,47 @@
+name: isu-ai
+title: "AI at ISU"
+cadence: weekly
+audience: "the VPR office and department chairs at Iowa State University"
+persona: "analyst for a university research office"
+
+sources:
+  - inside_isu
+  - isu_research_news
+  - isu_news_service
+  - changedetection
+  - nsf: {awardee: "Iowa State University"}
+  - nih: {org_names: ["IOWA STATE UNIVERSITY"]}
+  - usaspending: {recipient: "IOWA STATE UNIVERSITY"}
+
+relevance:
+  any_of:
+    - AI
+    - artificial intelligence
+    - machine learning
+    - LLM
+    - foundation model
+    - data science
+    - TrAC
+    - AIIRA
+  none_of: []
+  max_items: 80
+
+buckets:
+  - name: Funding
+    ask: "awards, grants, gifts; include sponsor, PI, and amount verbatim"
+  - name: People
+    ask: "hires, departures, named chairs, major awards to individuals"
+  - name: Centers and initiatives
+    ask: "new centers, institutes, programs, partnerships"
+  - name: Policy
+    ask: "university, Regents, state, or federal policy that affects AI work at Iowa State"
+
+extra_rules: []
+
+delivery:
+  from: "brief@facility.iastate.edu"
+  to: ["isugif2011@gmail.com"]
+  subject: "{title} — week of {week_start} ({n} items)"
+
+llm:
+  provider: claude-cli

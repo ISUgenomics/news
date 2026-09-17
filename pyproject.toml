@@ -1,0 +1,34 @@
+[project]
+name = "topic-brief"
+version = "0.1.0"
+description = "Weekly one-page digests of public activity on a chosen topic, for a chosen audience"
+requires-python = ">=3.11"
+dependencies = [
+    # Each line needs a one-line justification; see CLAUDE.md non-negotiable 8.
+    "typer>=0.12",       # CLI: ingest | synthesize | deliver | doctor
+    "pyyaml>=6.0",       # config.yaml, sources.yaml, profiles/*.yaml
+    "feedparser>=6.0",   # seed feed_fetch: dialect-tolerant RSS/Atom parsing
+    "trafilatura>=1.8",  # seed page_main_text: boilerplate-stripped main-text extraction
+    "markdown>=3.5",     # seed markdown_email: Markdown -> HTML alternative part
+    "jsonschema>=4.20",  # seed llm_json_contract: validates the model's JSON against prompts/schema.json
+]
+
+[project.scripts]
+brief = "brief.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/brief"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+addopts = "-q"

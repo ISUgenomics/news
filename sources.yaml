@@ -1,0 +1,45 @@
+# Every source, declared once. Profiles reference these by name and may override
+# parameters inline. A source used identically by five profiles is fetched once.
+#
+# `kind` names the adapter in src/brief/sources/. `verify: true` marks a URL that was
+# never confirmed from a live fetch — the poller logs it loudly until someone clears the flag.
+
+inside_isu:
+  kind: rss
+  url: "https://www.inside.iastate.edu/rss"
+  verify: true                  # site returned "Request Rejected" to a plain fetch; needs the browser UA
+
+isu_research_news:
+  kind: rss
+  url: "https://research.iastate.edu/feed/"
+  verify: true
+
+isu_news_service:
+  kind: rss
+  url: "https://www.news.iastate.edu/feed"
+  verify: true
+
+changedetection:
+  kind: rss
+  url: "http://changedetection:5000/rss?token=${CD_TOKEN}"
+
+biorxiv_plant_biology:
+  kind: rss
+  url: "https://connect.biorxiv.org/biorxiv_xml/plant_biology"
+
+nih_guide:
+  kind: rss
+  url: "https://grants.nih.gov/grants/guide/newsfeed/fundingopps.xml"
+
+pubmed_search:
+  kind: pubmed                  # query set per profile; uses E-utilities esearch + esummary
+  email: "isugif2011@gmail.com" # NCBI asks callers to identify themselves
+
+nsf:
+  kind: nsf                     # awardee | keyword | pi_name set per profile
+
+nih:
+  kind: nih                     # org_names | advanced_text_search set per profile
+
+usaspending:
+  kind: usaspending             # recipient set per profile
