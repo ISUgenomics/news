@@ -5,7 +5,7 @@
 # news — codeLibrary status
 
 **Repo:** `/Users/andrewseverin/AI/news`  
-**HEAD:** 050942f on `feat/scaffold`  
+**HEAD:** 6c9ca6e on `feat/scaffold`  
 **Generated:** 2026-09-17 — refresh with `/lib-status`
 
 ## Extracted into codeLibrary
@@ -55,8 +55,8 @@ Untangle: `/lib-fix`
 - `src/brief/lib/config_env_interpolate.py` — strong (22)
 - `src/brief/lib/keyword_relevance.py` — strong (22)
 - `src/brief/lib/macos_keychain_read.py` — strong (22)
-- `src/brief/lib/nih_reporter_search.py` — strong (22)
-- `src/brief/lib/nsf_award_search.py` — strong (22)
+- `src/brief/lib/nih_reporter_search.py` — strong (19)
+- `src/brief/lib/nsf_award_search.py` — strong (19)
 - …and 24 more
 
 Full ranking: `/lib-harvest`. The scan has never read a line of the code it ranks — expect some of it to be wrong.
