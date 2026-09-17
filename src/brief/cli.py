@@ -856,6 +856,17 @@ def trends(
                + f"  ({len(rows):,} items)")
     typer.echo("")
     typer.echo(render_bars(visible, axis))
+
+    # The bucket containing today is nearly always incomplete, and an
+    # incomplete bucket rendered as a full one reads as a dip — or, when a
+    # short-window source lands entirely inside it, as a spike. Say so
+    # rather than letting the last bar be misread.
+    today = datetime.now(timezone.utc).date().isoformat()
+    if axis and bucket_of(today, by=by) == axis[-1]:
+        typer.echo(
+            f"\nthe last bucket ({axis[-1]}) is still in progress — "
+            "not comparable with the ones before it"
+        )
     if unparsed:
         typer.echo(f"\n{unparsed:,} item(s) had an unreadable {column} and are not counted")
     hidden = len(counts) - len(visible)

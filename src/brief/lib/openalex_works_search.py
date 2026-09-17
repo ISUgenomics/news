@@ -338,7 +338,7 @@ def resolve_institution(
 
 
 def search_openalex_works(
-    institution_id: str,
+    institution_id: str | None = None,
     *,
     from_date: str,
     to_date: str,
@@ -350,7 +350,18 @@ def search_openalex_works(
     timeout_s: float = 30.0,
     open_url: OpenUrl | None = None,
 ) -> list[dict[str, Any]]:
-    """Works an institution published between two dates, oldest cursor first.
+    """Works published between two dates, narrowed by institution or search.
+
+    AT LEAST ONE of ``institution_id`` or ``search`` is required. Neither is
+    refused rather than run, because the resulting query is every work
+    OpenAlex holds in the window — a quarter of a million for a single month.
+    That is not a wide search, it is a mistake, and left to run it surfaces
+    as a timeout or a truncated page rather than as an error.
+
+    With an institution the filter is exact and a caller's own keywords can
+    do the rest; without one, ``search`` is the only thing between the caller
+    and the whole corpus. That asymmetry is why ``search`` is discouraged for
+    institution queries and required without one.
 
     Pages with a cursor rather than an offset, because offset paging caps out
     and silently truncates a wide window. Stops at ``max_pages``; reaching it
@@ -361,12 +372,24 @@ def search_openalex_works(
         raise ValueError(f"per_page must be 1..{MAX_PER_PAGE}, got {per_page}")
     if max_pages < 1:
         raise ValueError(f"max_pages must be >= 1, got {max_pages}")
+    if not (institution_id or "").strip() and not (search or "").strip():
+        raise ValueError(
+            "pass institution_id, search, or both. With neither, the query is "
+            "every work OpenAlex holds in the window — hundreds of thousands "
+            "for a single month — which fails as a timeout rather than as an "
+            "error."
+        )
 
     filters = [
-        f"authorships.institutions.lineage:{normalize_institution_id(institution_id)}",
         f"from_publication_date:{from_date}",
         f"to_publication_date:{to_date}",
     ]
+    if (institution_id or "").strip():
+        filters.insert(
+            0,
+            f"authorships.institutions.lineage:"
+            f"{normalize_institution_id(institution_id)}",
+        )
 
     works: list[dict[str, Any]] = []
     seen: set[str] = set()

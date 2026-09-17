@@ -376,3 +376,87 @@ def test_the_module_imports_only_the_standard_library():
 def test_the_seed_does_not_import_from_the_app():
     source = Path(oa.__file__).read_text(encoding="utf-8")
     assert "from brief" not in source and "import brief" not in source
+
+
+# ------------------------------- boundary change: topic-scoped searching ---
+
+
+def test_neither_an_institution_nor_a_search_is_refused(stub):
+    """The resulting query is every work OpenAlex holds in the window —
+    hundreds of thousands for a month. Left to run it fails as a timeout or
+    a truncated page, which looks nothing like the mistake it is."""
+    stub.route("/works", b"{}")
+
+    with pytest.raises(ValueError) as caught:
+        oa.search_openalex_works(
+            from_date="2026-09-01", to_date="2026-09-17",
+            mailto=MAIL, base_url=stub.url,
+        )
+
+    assert "every work" in str(caught.value)
+    assert not hits(stub, "/works"), "and nothing was requested"
+
+
+def test_a_search_alone_queries_the_whole_corpus_in_the_window(stub):
+    """A topic profile has no institution to narrow by."""
+    stub.route("/works", json.dumps({"meta": {"next_cursor": None}, "results": []}).encode())
+
+    oa.search_openalex_works(
+        search="rust bioinformatics", from_date="2026-09-01", to_date="2026-09-17",
+        mailto=MAIL, base_url=stub.url,
+    )
+
+    sent = query_of(hits(stub, "/works")[-1])
+    assert sent["search"] == "rust bioinformatics"
+    assert "lineage" not in sent["filter"], "no institution filter is sent"
+    assert "from_publication_date:2026-09-01" in sent["filter"], "the window still bounds it"
+
+
+def test_an_institution_and_a_search_together_send_both(stub):
+    stub.route("/works", json.dumps({"meta": {"next_cursor": None}, "results": []}).encode())
+
+    search(stub, search="genomics")
+
+    sent = query_of(hits(stub, "/works")[-1])
+    assert "authorships.institutions.lineage:I173911158" in sent["filter"]
+    assert sent["search"] == "genomics"
+
+
+def test_a_blank_institution_is_the_same_as_none(stub):
+    """An empty string from a YAML key that exists but is unset must not
+    read as 'an institution was given'."""
+    stub.route("/works", b"{}")
+
+    with pytest.raises(ValueError):
+        oa.search_openalex_works(
+            "   ", from_date="2026-09-01", to_date="2026-09-17",
+            mailto=MAIL, base_url=stub.url,
+        )
+
+
+def test_an_institution_alone_still_needs_no_search(stub):
+    """The original contract, unchanged: this app filters locally against a
+    visible keyword list rather than OpenAlex's opaque relevance."""
+    stub.route("/works", json.dumps({"meta": {"next_cursor": None}, "results": []}).encode())
+
+    search(stub)
+
+    assert "search" not in query_of(hits(stub, "/works")[-1])
+
+
+def test_a_blank_institution_alongside_a_search_is_a_topic_query(stub):
+    """The path the earlier tests missed. A YAML key that exists but is
+    empty — `institution: ""` — must read as "no institution", not as an
+    institution that fails to normalise. With a search present the guard
+    does not fire, so only this pins it."""
+    stub.route("/works", json.dumps({"meta": {"next_cursor": None}, "results": []}).encode())
+
+    oa.search_openalex_works(
+        "   ", search="rust bioinformatics",
+        from_date="2026-09-01", to_date="2026-09-17",
+        mailto=MAIL, base_url=stub.url,
+    )
+
+    sent = query_of(hits(stub, "/works")[-1])
+    assert "lineage" not in sent["filter"]
+    assert sent["search"] == "rust bioinformatics"

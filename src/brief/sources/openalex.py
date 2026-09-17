@@ -4,9 +4,10 @@ Where `pubmed` asks one database for an affiliation string, this asks OpenAlex
 for a resolved institution id across every discipline. Measured over one
 30-day window at one university: PubMed 99 works, OpenAlex 338.
 
-The institution id is profile data and is required. The seed refuses a bare
-name on purpose — see its docstring — so a profile pins an id that a human
-looked up once.
+A profile supplies `institution`, `search`, or both. The seed refuses a bare
+institution NAME on purpose — see its docstring — so a profile pins an id a
+human looked up once, and refuses having neither, because that query is the
+whole corpus.
 """
 
 from __future__ import annotations
@@ -30,7 +31,10 @@ def fetch(
     now: datetime,
 ) -> list[Item]:
     works = search_openalex_works(
-        str(params["institution"]),
+        # Optional since the boundary change: a topic profile has no
+        # institution and narrows with `search` instead. The seed refuses
+        # both being absent.
+        params.get("institution") or None,
         from_date=since.date().isoformat(),
         to_date=now.date().isoformat(),
         search=params.get("search") or None,

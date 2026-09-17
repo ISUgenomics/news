@@ -24,6 +24,11 @@ sources:
   # Preprints that describe the tools. No affiliation in these feeds, which
   # is fine here — the whole world is the point.
   - biorxiv_bioinformatics
+  # Published literature, topic-scoped. No `institution` here: this profile
+  # is about a field, not a campus, which is what the seed's boundary change
+  # of 2026-09-17 allows. `search` is REQUIRED without one — the seed refuses
+  # having neither rather than querying the whole corpus.
+  - openalex: {search: "rust bioinformatics software", max_pages: 2}
 
 relevance:
   # NOT "rust". The sources already scope to Rust — the GitHub queries say

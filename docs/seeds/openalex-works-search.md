@@ -7,9 +7,9 @@ Return the scholarly works an institution published in a date window, from the O
 You want an institution's recent publications and the affiliation-string search you reached for first is missing most of them. OpenAlex filters on a resolved institution id, so the query is exact rather than a string match, and it spans every discipline instead of one database's subject scope.
 
 ## Inputs
-- institution_id: str — an OpenAlex institution id (`I173911158`), a ROR id (`04rswrd78`), or either as a URL. Normalised internally; a bare name is REFUSED, see below
+- institution_id: str | None — an OpenAlex institution id (`I173911158`), a ROR id (`04rswrd78`), or either as a URL. Normalised internally; a bare name is REFUSED, see below. **Optional since the boundary change below**, but not together with an absent `search`
 - from_date / to_date: str — ISO dates bounding `publication_date`
-- search: str | None — OpenAlex's relevance search across title, abstract and fulltext. Optional: a caller filtering locally (this app does) should leave it unset
+- search: str | None — OpenAlex's relevance search across title, abstract and fulltext. Optional for an institution query; REQUIRED when there is no institution, because the alternative is every work OpenAlex holds
 - mailto: str — the contact address OpenAlex asks for; it buys the faster, more reliable "polite pool" and is required rather than optional so a caller cannot silently be rude
 - per_page: int = 200 — OpenAlex's maximum
 - max_pages: int = 10 — a bound on the cursor walk, so a wide window cannot page forever
@@ -70,7 +70,7 @@ def normalize_institution_id(value: str) -> str
 def normalize_work(raw: dict) -> dict
 def resolve_institution(name: str, *, mailto: str, ...) -> list[dict]
 def search_openalex_works(
-    institution_id: str, *, from_date: str, to_date: str,
+    institution_id: str | None = None, *, from_date: str, to_date: str,
     search: str | None = None, mailto: str,
     per_page: int = 200, max_pages: int = 10,
     timeout_s: float = 30.0, open_url: OpenUrl | None = None,
@@ -96,3 +96,32 @@ differs, but the abstract trick is lifted from it rather than rediscovered.
 `tests/harness/stub_http.py`, with `tests/fixtures/openalex_works.json` — a
 real trimmed response carrying works with an abstract, without one, and
 without a DOI.
+
+## Boundary change — 2026-09-17: the institution becomes optional
+
+The approved boundary required an institution id, and that was right for the
+question it was built for: "what did this campus publish". A topic profile
+asks a different one — "what is the field publishing, anywhere" — and had no
+way to use this module at all.
+
+So `institution_id` becomes optional, and the module now takes **at least one
+of `institution_id` or `search`**. Neither is refused, loudly, because the
+query that results is *every work OpenAlex holds in the window*: 250,000+ for
+a single month. That is not a wide search, it is a mistake, and it would
+surface as a timeout or a truncated page rather than as an error.
+
+What deliberately does NOT change:
+
+- **A bare institution name is still refused.** The reason was never that the
+  parameter was required; it was that a name search silently matches the
+  wrong body. `resolve_institution` remains the way in.
+- **`lineage` is still the filter** when an institution is given.
+- **The recommendation against `search` for institution profiles stands.**
+  This app filters locally against a visible, versioned keyword list; adding
+  OpenAlex's opaque relevance ranking on top means two filters, one of which
+  nobody can inspect. `search` is for the case where there is no institution
+  to narrow by and *something* must.
+
+The asymmetry is the point: with an institution, the filter is exact and
+local keywords do the rest. Without one, `search` is the only thing standing
+between the caller and the whole corpus.
