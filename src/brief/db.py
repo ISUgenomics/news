@@ -30,7 +30,7 @@ from typing import Any
 from brief.models import Item
 from brief.vendor.sqlite_versioned_schema import init_schema
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 DDL = """
 CREATE TABLE IF NOT EXISTS items (
@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS items (
   fetched_at    TEXT NOT NULL,
   content_hash  TEXT NOT NULL,
   raw_json      TEXT,
+  facts_json    TEXT,
   UNIQUE(source_key, content_hash)
 );
 
@@ -92,8 +93,24 @@ def connect(path: str | Path) -> sqlite3.Connection:
     # Order matters: the DDL creates an index on `source_key`, which fails on a
     # v1 table that does not have the column yet. Add it first, then apply.
     _add_source_key_column(conn)
+    _add_facts_column(conn)
     init_schema(conn, DDL, SCHEMA_VERSION)
     return conn
+
+
+def _add_facts_column(conn: sqlite3.Connection) -> None:
+    """Add `facts_json` to a database created before schema version 3.
+
+    Nullable and unindexed, so nothing else changes: rows stored before it
+    existed simply have no facts and render without that line. The column is
+    not part of `content_hash`, so re-fetching a page to populate it does not
+    create a second row.
+    """
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(items)")}
+    if not columns or "facts_json" in columns:
+        return
+    conn.execute("ALTER TABLE items ADD COLUMN facts_json TEXT")
+    conn.commit()
 
 
 def _add_source_key_column(conn: sqlite3.Connection) -> None:
@@ -186,12 +203,14 @@ def upsert_items(
             json.dumps(item.raw, sort_keys=True, default=str)
             if item.raw is not None
             else None,
+            # Insertion order preserved: it is the display order.
+            json.dumps(item.facts, default=str) if item.facts else None,
         )
         cur = conn.execute(
             "INSERT INTO items"
             " (source, source_key, external_id, url, title, body, published_at,"
-            "  fetched_at, content_hash, raw_json)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "  fetched_at, content_hash, raw_json, facts_json)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             " ON CONFLICT(source_key, content_hash) DO NOTHING",
             row,
         )
@@ -205,6 +224,7 @@ def items_fetched_since(
     source_keys: Sequence[str],
     *,
     since: datetime,
+    published_after: str | None = None,
 ) -> list[dict[str, Any]]:
     """Candidate rows for one profile: its sources, fetched since a cutoff.
 
@@ -214,16 +234,30 @@ def items_fetched_since(
     Selection is on ``source_key``, not ``source``: a profile sees rows from
     the fetches it actually asked for, never another profile's parameters
     against the same endpoint.
+
+    ``published_after`` bounds how old an item may be and exists because of a
+    real accident. A deep historical ingest fetches three years of awards in one
+    afternoon, so every one of them is "new to us" and the next weekly brief
+    fills with awards from 2024. The window keeps the original intent — an award
+    we only just learned about is still news — while excluding history we went
+    looking for. An item with no publication date is kept: we cannot show it is
+    old, and dropping it would silently lose every undated feed entry.
     """
     if not source_keys:
         return []
     placeholders = ",".join("?" for _ in source_keys)
+    age_clause = ""
+    params: list[Any] = [*source_keys, _iso(since)]
+    if published_after:
+        age_clause = " AND (published_at IS NULL OR published_at >= ?)"
+        params.append(published_after)
     cur = conn.execute(
         f"SELECT id, source, source_key, external_id, url, title, body,"
-        f" published_at, fetched_at"
+        f" published_at, fetched_at, facts_json"
         f" FROM items WHERE source_key IN ({placeholders}) AND fetched_at >= ?"
+        f"{age_clause}"
         f" ORDER BY COALESCE(published_at, fetched_at) DESC, id DESC",
-        (*source_keys, _iso(since)),
+        params,
     )
     return [dict(r) for r in cur.fetchall()]
 
@@ -288,7 +322,7 @@ def items_published_between(
     placeholders = ",".join("?" for _ in source_keys)
     cur = conn.execute(
         f"SELECT id, source, source_key, external_id, url, title, body,"
-        f" published_at, fetched_at"
+        f" published_at, fetched_at, facts_json"
         f" FROM items WHERE source_key IN ({placeholders})"
         f"   AND published_at IS NOT NULL"
         f"   AND published_at >= ? AND published_at < ?"

@@ -27,6 +27,7 @@ that visible as thinness rather than as the week being quiet.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -46,7 +47,7 @@ DEFAULT_MAX_ITEM_CHARS = 6000
 # it, changing how an item is presented to the model leaves the hash identical
 # over genuinely different input, and a regeneration diff would be misread as a
 # model difference.
-ITEM_RENDER_VERSION = 1
+ITEM_RENDER_VERSION = 2  # v2 adds the labelled facts lines
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +61,7 @@ class Candidate:
     body: str
     published_at: str | None
     hits: int
+    facts: dict[str, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +139,7 @@ def select(
             body=str(row["body"] or ""),
             published_at=row.get("published_at"),
             hits=hits,
+            facts=_facts_of(row),
         )
         for row, hits in ranked
     ]
@@ -168,6 +171,18 @@ def select(
     )
 
 
+def _facts_of(row: Mapping[str, Any]) -> dict[str, str] | None:
+    """The stored facts mapping, or None. A malformed one is simply absent."""
+    raw = row.get("facts_json")
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return None
+    return parsed if isinstance(parsed, dict) and parsed else None
+
+
 def _text_of(row: Mapping[str, Any]) -> str:
     return f"{row.get('title') or ''}\n\n{row.get('body') or ''}"
 
@@ -188,7 +203,16 @@ def _render_for_prompt(candidate: Candidate) -> str:
     Redaction happens here, at the single point where item text becomes
     prompt text, so no caller can route around it.
     """
-    header = f"{candidate.source} · {candidate.published_at or 'undated'}\n{candidate.title}\n{candidate.url}"
+    header = (
+        f"{candidate.source} · {candidate.published_at or 'undated'}\n"
+        f"{candidate.title}\n{candidate.url}"
+    )
+    if candidate.facts:
+        # One line per named value, in the order the adapter set them. These are
+        # what the prompt tells the model to quote verbatim — the PI, the amount,
+        # the sponsor — so they are presented as labelled values rather than
+        # buried in prose it would have to infer them from.
+        header += "\n" + "\n".join(f"{k}: {v}" for k, v in candidate.facts.items())
     body = candidate.body.strip()
     text = f"{header}\n\n{body}" if body else header
     return redact(text)

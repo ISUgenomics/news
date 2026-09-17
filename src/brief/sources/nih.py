@@ -36,6 +36,19 @@ def fetch(
             external_id=r.get("external_id"),
             published_at=r.get("published_at"),
             raw=r.get("raw"),
+            facts=_facts(r),
         )
         for r in records
     ]
+
+
+def _facts(r: Mapping[str, Any]) -> dict[str, str]:
+    names = r.get("pi_names") or []
+    pairs = (
+        ("PI", ", ".join(names) if isinstance(names, list) else names),
+        ("Amount", r.get("amount")),
+        ("Sponsor", r.get("agency") or "NIH"),
+        ("Awardee", r.get("org_name")),
+        ("Fiscal year", r.get("fiscal_year")),
+    )
+    return {k: str(v) for k, v in pairs if v not in (None, "", [])}

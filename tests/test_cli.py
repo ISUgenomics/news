@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -685,4 +685,55 @@ def test_a_dry_run_generates_nothing(tmp_path, stub_http):
     )
     conn = db.connect(root / "data" / "items.db")
     assert db.brief_weeks(conn, "good") == []
+    conn.close()
+
+
+def test_the_weekly_run_applies_the_publication_age_bound(tmp_path, monkeypatch):
+    """Through _synthesize_one, not just the query it calls.
+
+    Testing db.items_fetched_since directly passes even if the CLI never passes
+    published_after, which is how this nearly shipped unguarded.
+    """
+    conn = db.connect(tmp_path / "x.db")
+    db.upsert_items(
+        conn,
+        [
+            Item(source="feed_a", url="https://example.test/recent", title="A recent award",
+                 body="b", published_at=(NOW - timedelta(days=3)).isoformat()),
+            Item(source="feed_a", url="https://example.test/ancient", title="An ancient award",
+                 body="b", published_at="2024-03-01T00:00:00Z"),
+        ],
+        now=NOW,
+        source_key="feed_a",
+    )
+
+    seen = {}
+
+    class Recording:
+        name = "recording"
+
+        def available(self):
+            return True
+
+        def status(self):
+            return "ready"
+
+        def context_window(self):
+            return 100_000
+
+        def complete(self, messages):
+            seen["prompt"] = " ".join(m["content"] for m in messages)
+            return json.dumps(
+                {"buckets": [{"name": "Funding",
+                              "entries": [{"text": "x", "item_ids": [1]}]}]}
+            )
+
+    monkeypatch.setattr(cli.llm, "require_provider", lambda cfg: Recording())
+    profile = make_profile(config={"smtp": {}, "select": {"max_item_age_days": 90}})
+    cli._synthesize_one(conn, profile, week_start=WEEK, now=NOW, root=None)
+
+    assert "A recent award" in seen["prompt"]
+    assert "An ancient award" not in seen["prompt"], (
+        "a deep historical ingest must not flood the weekly brief"
+    )
     conn.close()

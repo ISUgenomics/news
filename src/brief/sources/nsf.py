@@ -44,6 +44,23 @@ def fetch(
             external_id=r.get("external_id"),
             published_at=r.get("published_at"),
             raw=r.get("raw"),
+            facts=_facts(r),
         )
         for r in records
     ]
+
+
+def _facts(r: Mapping[str, Any]) -> dict[str, str]:
+    """The named details a brief quotes verbatim: PI, amount, sponsor.
+
+    The seed already extracts these; without this mapping they never reach the
+    model, which is then asked for a PI it has not been shown.
+    """
+    pairs = (
+        ("PI", r.get("pi_name")),
+        ("Amount", r.get("amount")),
+        ("Sponsor", r.get("agency") or "NSF"),
+        ("Program", r.get("program")),
+        ("Awardee", r.get("awardee")),
+    )
+    return {k: str(v) for k, v in pairs if v not in (None, "")}

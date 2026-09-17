@@ -42,6 +42,19 @@ def fetch(
             external_id=r.get("external_id"),
             published_at=r.get("published_at"),
             raw=r.get("raw"),
+            facts=_facts(r),
         )
         for r in records
     ]
+
+
+def _facts(r: Mapping[str, Any]) -> dict[str, str]:
+    """No PI: USAspending names the recipient institution, not a person."""
+    pairs = (
+        ("Amount", r.get("amount")),
+        ("Sponsor", r.get("awarding_agency")),
+        ("Sub-agency", r.get("awarding_sub_agency")),
+        ("Recipient", r.get("recipient")),
+        ("Period start", r.get("start_date")),
+    )
+    return {k: str(v) for k, v in pairs if v not in (None, "")}

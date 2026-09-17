@@ -328,8 +328,12 @@ def _synthesize_one(
     the same citation check as a live one, so the two are comparable.
     """
     if rows is None:
+        max_age = int((prof.config.get("select") or {}).get("max_item_age_days", 90))
         rows = db.items_fetched_since(
-            conn, [r.source_key() for r in prof.sources], since=now - timedelta(days=7)
+            conn,
+            [r.source_key() for r in prof.sources],
+            since=now - timedelta(days=7),
+            published_after=(now - timedelta(days=max_age)).date().isoformat(),
         )
 
     try:

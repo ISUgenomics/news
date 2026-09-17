@@ -608,3 +608,53 @@ def test_the_two_caps_are_never_equal():
         f"both caps are {item_cap}; the per-item header then clips every "
         f"maximum-length body by its own length"
     )
+
+
+def test_the_named_values_a_brief_must_quote_reach_the_model(conn):
+    """The profile asks for 'sponsor, PI, and amount verbatim'.
+
+    The seeds extract all three; the app dropped them for a while, so the model
+    was asked for a PI it had never been shown and duly wrote 'the item does not
+    name a specific PI'. These are rendered as labelled lines rather than left
+    in prose, because they are values to repeat rather than text to read.
+    """
+    conn.execute(
+        "UPDATE items SET facts_json = ? WHERE id = 1",
+        ('{"PI": "Hongwei Zhang", "Amount": "1567090", "Sponsor": "NSF"}',),
+    )
+    conn.commit()
+
+    provider = StubProvider(good_reply())
+    run(conn, make_profile(), provider)
+    sent = " ".join(m["content"] for m in provider.calls[0])
+
+    assert "PI: Hongwei Zhang" in sent
+    assert "Amount: 1567090" in sent
+    assert "Sponsor: NSF" in sent
+
+
+def test_an_item_with_no_facts_renders_without_that_section(conn):
+    """Rows stored before the column existed must still work."""
+    provider = StubProvider(good_reply())
+    run(conn, make_profile(), provider)
+    sent = " ".join(m["content"] for m in provider.calls[0])
+    assert "PI:" not in sent
+    assert "University wins machine learning award" in sent
+
+
+def test_malformed_stored_facts_are_ignored_rather_than_crashing(conn):
+    conn.execute("UPDATE items SET facts_json = ? WHERE id = 1", ("not json",))
+    conn.commit()
+    provider = StubProvider(good_reply())
+    run(conn, make_profile(), provider)
+    assert provider.calls, "a bad facts blob must not stop the week"
+
+
+def test_the_item_render_version_tracks_the_item_format(conn):
+    """It feeds prompt_hash, so two briefs with one hash saw the same input."""
+    from brief.select import ITEM_RENDER_VERSION
+
+    assert ITEM_RENDER_VERSION >= 2, (
+        "adding the facts lines changed what the model sees; the version must move "
+        "or a regenerated brief would look comparable to one that saw less"
+    )

@@ -59,6 +59,14 @@ select:
   # 100k-context provider has room for 50,000 and drops nothing; raise it there.
   max_item_chars: 24000
 
+  # How old an item may be and still count as news in the WEEKLY run. The live
+  # window is "fetched in the last 7 days", which means an award we only just
+  # learned about is news even if the agency posted it a month ago — that is
+  # deliberate. But a deep historical ingest fetches years of awards in one
+  # afternoon, and without this bound the next brief fills with awards from
+  # 2024. Backfill ignores it entirely: it selects by publication date already.
+  max_item_age_days: 90
+
 ingest:
   silent_source_days: 14        # alert when a source has produced nothing for this long
   # Storage cap, applied by db.py when the row is written, so it is permanent

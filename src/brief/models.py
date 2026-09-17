@@ -17,7 +17,14 @@ from typing import Any
 
 @dataclass(frozen=True, slots=True)
 class Item:
-    """One thing a source produced. Plain data; no behavior, no db handle."""
+    """One thing a source produced. Plain data; no behavior, no db handle.
+
+    ``facts`` is the short, named detail a brief quotes rather than summarises:
+    the PI, the amount, the sponsor. The seeds already extract these — the app
+    dropped them for a while, so the model was asked for a PI it had never been
+    shown. Kept separate from ``body`` because they are values to be repeated
+    verbatim, not prose to be read, and insertion order is the display order.
+    """
 
     source: str
     url: str
@@ -26,6 +33,7 @@ class Item:
     external_id: str | None = None
     published_at: str | None = None
     raw: dict[str, Any] | None = None
+    facts: dict[str, str] | None = None
 
     def text(self) -> str:
         """Title and body as one blob, for keyword matching and packing."""

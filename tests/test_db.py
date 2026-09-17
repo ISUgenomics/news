@@ -480,3 +480,54 @@ def test_unparseable_stored_result_counts_as_a_real_brief(conn):
         result_json="not json at all", markdown="#",
     )
     assert db.brief_weeks(conn, "p") == ["2026-08-03"]
+
+
+def test_a_deep_historical_ingest_does_not_flood_the_weekly_window(conn):
+    """The accident this bound exists for.
+
+    Fetching three years of awards in one afternoon makes every one of them
+    'new to us', so the next weekly brief fills with awards from 2024.
+    """
+    db.upsert_items(
+        conn,
+        [
+            item(url="https://example.test/recent", published_at="2026-09-15T00:00:00Z"),
+            item(url="https://example.test/ancient", published_at="2024-03-01T00:00:00Z"),
+        ],
+        now=NOW,  # both fetched today, which is the point
+        source_key="feed_a",
+    )
+
+    unbounded = db.items_fetched_since(conn, ["feed_a"], since=NOW - timedelta(days=7))
+    assert len(unbounded) == 2, "both look new by fetch date"
+
+    bounded = db.items_fetched_since(
+        conn, ["feed_a"], since=NOW - timedelta(days=7), published_after="2026-06-19"
+    )
+    assert [r["url"] for r in bounded] == ["https://example.test/recent"]
+
+
+def test_an_award_we_only_just_learned_about_is_still_news(conn):
+    """The original intent survives the bound: recently-found is not recently-published."""
+    db.upsert_items(
+        conn,
+        [item(url="https://example.test/month-old", published_at="2026-08-20T00:00:00Z")],
+        now=NOW,
+        source_key="feed_a",
+    )
+    got = db.items_fetched_since(
+        conn, ["feed_a"], since=NOW - timedelta(days=7), published_after="2026-06-19"
+    )
+    assert len(got) == 1, "a month-old award found this week is still news"
+
+
+def test_an_undated_item_survives_the_age_bound(conn):
+    """We cannot show it is old, and dropping it would lose every undated feed entry."""
+    db.upsert_items(
+        conn, [item(url="https://example.test/undated", published_at=None)], now=NOW,
+        source_key="feed_a",
+    )
+    got = db.items_fetched_since(
+        conn, ["feed_a"], since=NOW - timedelta(days=7), published_after="2026-06-19"
+    )
+    assert [r["url"] for r in got] == ["https://example.test/undated"]
