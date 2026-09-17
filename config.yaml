@@ -44,11 +44,20 @@ select:
   # body alone, so it must exceed ingest.body_cap_bytes below by enough to cover
   # that header or the longest items are cut by a few hundred characters.
   #
-  # ingest.body_cap_bytes is the real ceiling: a body is already cut to that many
-  # bytes when it is stored, so nothing here can recover more than that. 9216 is
-  # 8192 plus room for the header. There is plenty of budget: a typical week
-  # sends ~44k characters against ~109k on a 32k-context model.
-  max_item_chars: 9216
+  # Now that storage keeps whole articles, THIS is the binding cap and it is a
+  # measured trade rather than a round number. On a 32k-context model, against
+  # one real week of 86 items:
+  #
+  #     cap  9,216  ->  16 sent, 3 truncated, 0 dropped
+  #     cap 16,000  ->  16 sent, 1 truncated, 0 dropped
+  #     cap 24,000  ->  16 sent, 1 truncated, 0 dropped   <- here
+  #     cap 50,000  ->  14 sent, 0 truncated, 2 DROPPED
+  #
+  # Past ~24k a single 49k-character awards listing eats half the budget and
+  # crowds two whole items out of the brief. Truncating one long article beats
+  # losing two items outright, so this stops short of that cliff. A
+  # 100k-context provider has room for 50,000 and drops nothing; raise it there.
+  max_item_chars: 24000
 
 ingest:
   silent_source_days: 14        # alert when a source has produced nothing for this long
@@ -57,4 +66,11 @@ ingest:
   # whose body was previously cut will hash differently once it is stored in
   # full, so it arrives as a NEW row alongside the old one and the model sees
   # both. Raise it only if you also mean to clear the affected rows.
-  body_cap_bytes: 8192
+  #
+  # Raised from 8192 after measuring what that cost: a real awards article ran to
+  # 49,331 characters and only 8,188 were kept, losing 83% of exactly the content
+  # a brief is looking for. Storage is not the scarce resource here — the spec
+  # budgets a few hundred items a week staying under 100 MB for years — so this
+  # keeps what was fetched and lets select.max_item_chars decide what a given
+  # model can actually be shown.
+  body_cap_bytes: 65536

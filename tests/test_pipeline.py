@@ -584,8 +584,18 @@ def test_the_item_cap_applies_to_the_rendered_item_not_just_the_body(conn):
     assert not with_header_room.truncated
 
 
-def test_the_shipped_config_leaves_room_for_the_header():
-    """The two caps must not be equal, or the longest item is always clipped."""
+def test_the_two_caps_are_never_equal():
+    """Equality is the specific trap, and which one binds is a real choice.
+
+    `max_item_chars` caps the rendered item — body plus a header of source,
+    date, title and URL — while `body_cap_bytes` caps the body alone. Set them
+    equal and every maximum-length body is silently clipped by the length of
+    that header, which is what a real week showed.
+
+    Either ordering is legitimate. Larger storage cap means the prompt budget
+    binds, which is a deliberate trade against the model's context window.
+    Larger item cap means storage binds. Equal means an accident.
+    """
     import pathlib
 
     import yaml
@@ -594,7 +604,7 @@ def test_the_shipped_config_leaves_room_for_the_header():
     cfg = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
     body_cap = cfg["ingest"]["body_cap_bytes"]
     item_cap = cfg["select"]["max_item_chars"]
-    assert item_cap > body_cap, (
-        f"max_item_chars ({item_cap}) must exceed body_cap_bytes ({body_cap}) by "
-        f"enough for the per-item header, or every maximum-length body is truncated"
+    assert item_cap != body_cap, (
+        f"both caps are {item_cap}; the per-item header then clips every "
+        f"maximum-length body by its own length"
     )
