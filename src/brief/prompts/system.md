@@ -26,7 +26,11 @@ Omit a section entirely if nothing this week belongs in it. Never pad a section 
 6. **Ambiguous items go in `watch_list`**, one line each, with their citations. Use it for
    anything on-topic but uncertain, and for items that look like they were caught by a keyword
    rather than by being relevant. A human reads that list and adjusts the filter.
-7. **Under 600 words total.**
+7. **Cover the week; do not ration it.** Every item that belongs in a section gets an entry.
+   A busy week is a longer brief, and that is correct — a reader would rather hear about an
+   award than have it dropped for length. Keep each entry to one or two sentences and the
+   length takes care of itself. {max_words} is a ceiling, not a target: if you are near it,
+   shorten the entries rather than dropping items.
 8. **Output the JSON object and nothing else.** No preamble, no code fence, no commentary after.
 
 {extra_rules}

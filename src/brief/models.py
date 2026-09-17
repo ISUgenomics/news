@@ -57,6 +57,12 @@ class Relevance:
 
 DEFAULT_SUBJECT = "{title} — week of {week_start} ({n} items)"
 
+#: A ceiling on the brief, not a target. Measured: a 600-word cap made the model
+#: drop items on a busy week, and a reader would rather hear about an award than
+#: have it rationed away. Generous enough that a heavy week is covered; present
+#: at all so a runaway answer is still bounded.
+DEFAULT_MAX_WORDS = 1500
+
 
 @dataclass(frozen=True, slots=True)
 class Delivery:
@@ -127,6 +133,7 @@ class Profile:
     delivery: Delivery
     llm: dict[str, Any] = field(default_factory=dict)
     extra_rules: tuple[str, ...] = ()
+    max_words: int = DEFAULT_MAX_WORDS
     cadence: str = "weekly"
     config: dict[str, Any] = field(default_factory=dict)
 

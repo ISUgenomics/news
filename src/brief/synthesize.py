@@ -87,6 +87,7 @@ def render_system_prompt(
         "{audience}": profile.audience,
         "{buckets}": buckets,
         "{extra_rules}": extra,
+        "{max_words}": f"{profile.max_words} words",
         "{schema}": json.dumps(schema, indent=2),
     }
     for placeholder, value in replacements.items():

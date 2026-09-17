@@ -64,6 +64,7 @@ def make_profile(**over) -> Profile:
         buckets=(Bucket("Funding", "awards"), Bucket("People", "hires")),
         delivery=Delivery(sender="from@example.test", to=("to@example.test",)),
         llm={"provider": "stub"},
+        max_words=1500,
         config={"smtp": {"host": "localhost", "port": 2525}},
     )
     base.update(over)
@@ -658,3 +659,29 @@ def test_the_item_render_version_tracks_the_item_format(conn):
         "adding the facts lines changed what the model sees; the version must move "
         "or a regenerated brief would look comparable to one that saw less"
     )
+
+
+def test_the_length_rule_is_a_ceiling_from_the_profile_not_a_hardcoded_target(conn):
+    """Coverage over brevity: a busy week should be a longer brief, not a
+    rationed one. The owner would rather hear about an award than have it
+    dropped for length, so the number is a profile ceiling and the rule says so."""
+    from brief.models import DEFAULT_MAX_WORDS
+
+    schema = synth_mod.load_schema()
+    default = synth_mod.render_system_prompt(make_profile(), schema=schema)
+    assert f"{DEFAULT_MAX_WORDS} words" in default
+    assert "ceiling, not a target" in default
+    assert "shorten the entries rather than dropping items" in default
+
+    generous = synth_mod.render_system_prompt(make_profile(max_words=4000), schema=schema)
+    assert "4000 words" in generous
+    assert "600 words" not in generous, "the old hardcoded target must be gone"
+
+
+def test_no_placeholder_survives_into_the_prompt(conn):
+    """A literal {max_words} reaching the model is worse than any number."""
+    import re
+
+    prompt = synth_mod.render_system_prompt(make_profile(), schema=synth_mod.load_schema())
+    body = prompt.split("Return an object matching this schema")[0]
+    assert not re.search(r"\{[a-z_]+\}", body), f"unsubstituted placeholder in {body[-200:]}"

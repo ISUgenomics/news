@@ -29,7 +29,15 @@ from typing import Any
 import yaml
 
 from brief.lib.config_env_interpolate import interpolate_config
-from brief.models import DEFAULT_SUBJECT, Bucket, Delivery, Profile, Relevance, SourceRef
+from brief.models import (
+    DEFAULT_MAX_WORDS,
+    DEFAULT_SUBJECT,
+    Bucket,
+    Delivery,
+    Profile,
+    Relevance,
+    SourceRef,
+)
 from brief.vendor.layered_config_overlay import deep_merge
 
 # Blocks a profile may override on top of config.yaml.
@@ -110,6 +118,7 @@ def load_profile(
         delivery=_parse_delivery(merged, p),
         llm=dict(merged.get("llm") or {}),
         extra_rules=tuple(raw.get("extra_rules") or ()),
+        max_words=_parse_max_words(raw, p),
         cadence=str(raw.get("cadence", "weekly")),
         config=merged,
     )
@@ -263,6 +272,15 @@ def _terms(value: Any, path: Path, field: str) -> tuple[str, ...]:
             )
         terms.append(text)
     return tuple(terms)
+
+
+def _parse_max_words(raw: Mapping[str, Any], path: Path) -> int:
+    value = raw.get("max_words", DEFAULT_MAX_WORDS)
+    if not isinstance(value, int) or value < 100:
+        raise ProfileError(
+            path, "max_words", "must be an integer of at least 100; it is a ceiling on the brief"
+        )
+    return value
 
 
 def _parse_buckets(raw: Mapping[str, Any], path: Path) -> tuple[Bucket, ...]:

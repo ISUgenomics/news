@@ -49,9 +49,17 @@ llm:
   # The real question is whether the best dozen are among the 21, which is a
   # RANKING question, not a context one.
   #
-  # Left commented rather than deleted: raise it if the length limit is ever
-  # enforced in code rather than asked for in the prompt.
-  # context_window: 65536
+  # Raised deliberately. The earlier measurement said a bigger window made the
+  # brief longer without making it choose better — but that assumed 600 words
+  # was the goal. It is not: the owner would rather hear about an award than
+  # have it rationed away for length. So the window goes up, the length rule
+  # becomes a ceiling that scales with the week (profiles.max_words), and a
+  # heavy week is allowed to be a longer brief.
+  #
+  # The cost is real and worth stating: ~17 minutes per brief instead of ~3,
+  # because the prompt grows from 107k to 234k characters. For a weekly job on
+  # a schedule that is free; for an interactive rerun it is not.
+  context_window: 65536
   timeout_s: 1800                      # a 27B model takes minutes, not seconds
 
   # Reproducibility, as far as it goes. Ollama defaults to temperature 0.8 and a
