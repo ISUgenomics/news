@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Any
 
 from brief.models import Item
-from brief.sources import nih, nsf, openalex, pubmed, rss, usaspending
+from brief.sources import crates, nih, nsf, openalex, pubmed, rss, usaspending
 from brief.sources._format import money
 
 Fetch = Callable[..., list[Item]]
@@ -29,6 +29,7 @@ Fetch = Callable[..., list[Item]]
 MODULES = {
     "rss": rss,
     "openalex": openalex,
+    "crates": crates,
     "nsf": nsf,
     "nih": nih,
     "usaspending": usaspending,

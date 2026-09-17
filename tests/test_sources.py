@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
+import pathlib
+
 import pytest
 
 from brief.models import Item
@@ -37,8 +39,29 @@ RSS = b"""<?xml version="1.0"?>
 </channel></rss>""" % (b"x" * 400)
 
 
-def test_every_declared_kind_has_an_adapter():
-    assert set(ADAPTERS) == {"rss", "nsf", "nih", "usaspending", "pubmed", "openalex"}
+def test_every_kind_sources_yaml_names_has_an_adapter():
+    """The invariant, not the inventory. This used to pin the exact set, so
+    adding a source kind — the thing the design is for — failed a test about
+    something else. What actually matters is that nothing in the shipped
+    catalog names an adapter that does not exist: that failure surfaces at
+    ingest, against the live network, on a Monday."""
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    catalog = yaml.safe_load((root / "sources.yaml").read_text(encoding="utf-8"))
+    declared = {str(body.get("kind")) for body in catalog.values() if isinstance(body, dict)}
+
+    missing = sorted(declared - set(ADAPTERS))
+    assert not missing, f"sources.yaml names kinds with no adapter: {missing}"
+
+
+def test_every_adapter_is_reachable_and_declares_its_history_support():
+    from brief.sources import MODULES, supports_history
+
+    assert set(ADAPTERS) == set(MODULES)
+    for kind, module in MODULES.items():
+        assert callable(module.fetch), kind
+        assert isinstance(supports_history(kind), bool), kind
 
 
 def test_an_unknown_kind_names_the_source_and_the_known_kinds():

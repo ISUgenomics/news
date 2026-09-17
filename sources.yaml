@@ -66,6 +66,12 @@ openalex:
   # faster, more reliable pool and is required rather than optional.
   mailto: "severin@iastate.edu"
 
+crates_io:
+  kind: crates                  # `query` and `sort` set per profile
+  # crates.io's crawler policy asks callers to identify themselves with a
+  # contact. Not a secret; the seed refuses a UA without one.
+  user_agent: "topic-brief (mailto:severin@iastate.edu)"
+
 nsf:
   kind: nsf                     # awardee | keyword | pi_name set per profile
 
