@@ -8,6 +8,7 @@ from typing import Any
 
 from brief.lib.nih_reporter_search import fetch_projects
 from brief.models import Item
+from brief.sources._format import money
 
 #: RePORTER takes a date window in its criteria, so history is reachable.
 SUPPORTS_HISTORY = True
@@ -46,7 +47,7 @@ def _facts(r: Mapping[str, Any]) -> dict[str, str]:
     names = r.get("pi_names") or []
     pairs = (
         ("PI", ", ".join(names) if isinstance(names, list) else names),
-        ("Amount", r.get("amount")),
+        ("Amount", money(r.get("amount"))),
         ("Sponsor", r.get("agency") or "NIH"),
         ("Awardee", r.get("org_name")),
         ("Fiscal year", r.get("fiscal_year")),

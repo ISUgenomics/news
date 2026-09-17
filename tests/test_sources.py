@@ -340,3 +340,63 @@ def test_no_adapter_writes_to_the_database():
             f"{path.name} must not touch the database"
         )
         assert "from brief.db" not in source, f"{path.name} must not touch the database"
+
+
+# --- how a dollar figure reads ----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (239160.0, "239160"),      # the USAspending shape: a JSON number
+        ("239160", "239160"),      # the NSF shape: already a string
+        (1567090, "1567090"),
+        (20000000.0, "20000000"),
+        (1234.56, "1234.56"),      # real cents are kept
+        (0, "0"),
+        (None, None),
+        ("", None),
+        ("n/a", "n/a"),            # unparseable passes through untouched
+    ],
+)
+def test_money_drops_a_float_tail_without_changing_the_value(value, expected):
+    """Representation, not conversion — the prompt still gets the figure verbatim.
+
+    808 of 1041 USAspending amounts reached the model as '239160.0' and came
+    back out in a brief looking like a bug.
+    """
+    from brief.sources import money
+
+    assert money(value) == expected
+
+
+def test_award_adapters_put_the_pi_and_amount_where_the_model_will_see_them(monkeypatch):
+    """The profile asks for 'sponsor, PI, and amount verbatim'."""
+    import brief.sources.nsf
+
+    record = {
+        "external_id": "1", "url": "https://x/1", "title": "t", "body": "b",
+        "published_at": "2026-09-01", "raw": {}, "pi_name": "Hongwei Zhang",
+        "amount": "1567090", "agency": "NSF", "program": "CISE", "awardee": "A University",
+    }
+    monkeypatch.setattr(brief.sources.nsf, "search_nsf_awards", lambda **kw: [record])
+    (items, _) = fetch("nsf", {"kind": "nsf"}, {"awardee": "A University"}, since=SINCE, now=NOW)
+
+    assert items[0].facts["PI"] == "Hongwei Zhang"
+    assert items[0].facts["Amount"] == "1567090"
+    assert items[0].facts["Sponsor"] == "NSF"
+
+
+def test_usaspending_has_no_pi_because_it_names_institutions(monkeypatch):
+    import brief.sources.usaspending
+
+    record = {
+        "external_id": "1", "url": "https://x/1", "title": "t", "body": "b",
+        "published_at": "2026-09-01", "raw": {}, "amount": 239160.0,
+        "awarding_agency": "Department of Energy", "recipient": "A University",
+    }
+    monkeypatch.setattr(brief.sources.usaspending, "search_awards", lambda **kw: [record])
+    (items, _) = fetch("usaspending", {"kind": "usaspending"}, {"recipient": "A"}, since=SINCE, now=NOW)
+
+    assert "PI" not in items[0].facts, "this source names the institution, not a person"
+    assert items[0].facts["Amount"] == "239160", "and not 239160.0"

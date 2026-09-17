@@ -12,6 +12,7 @@ from typing import Any
 
 from brief.lib.usaspending_award_search import search_awards
 from brief.models import Item
+from brief.sources._format import money
 
 #: time_period is a real filter, so history is reachable — and this is the only
 #: source covering USDA/NIFA, which is where a deep fetch earns its keep.
@@ -51,7 +52,7 @@ def fetch(
 def _facts(r: Mapping[str, Any]) -> dict[str, str]:
     """No PI: USAspending names the recipient institution, not a person."""
     pairs = (
-        ("Amount", r.get("amount")),
+        ("Amount", money(r.get("amount"))),
         ("Sponsor", r.get("awarding_agency")),
         ("Sub-agency", r.get("awarding_sub_agency")),
         ("Recipient", r.get("recipient")),

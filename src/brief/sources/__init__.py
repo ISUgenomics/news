@@ -18,6 +18,7 @@ from typing import Any
 
 from brief.models import Item
 from brief.sources import nih, nsf, pubmed, rss, usaspending
+from brief.sources._format import money
 
 Fetch = Callable[..., list[Item]]
 
@@ -80,4 +81,4 @@ def fetch(
     return adapter(source_name, merged, since=since, now=now), {}
 
 
-__all__ = ["ADAPTERS", "Item", "UnknownSourceKind", "fetch", "supports_history"]
+__all__ = ["ADAPTERS", "Item", "UnknownSourceKind", "fetch", "money", "supports_history"]

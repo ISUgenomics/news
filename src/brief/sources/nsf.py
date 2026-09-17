@@ -14,6 +14,7 @@ from typing import Any
 
 from brief.lib.nsf_award_search import search_nsf_awards
 from brief.models import Item
+from brief.sources._format import money
 
 #: dateStart/dateEnd filter on the award's effective date, so this reaches back
 #: as far as the range asks. Measured: 190 awards over three years.
@@ -58,7 +59,7 @@ def _facts(r: Mapping[str, Any]) -> dict[str, str]:
     """
     pairs = (
         ("PI", r.get("pi_name")),
-        ("Amount", r.get("amount")),
+        ("Amount", money(r.get("amount"))),
         ("Sponsor", r.get("agency") or "NSF"),
         ("Program", r.get("program")),
         ("Awardee", r.get("awardee")),
