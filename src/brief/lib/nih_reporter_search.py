@@ -65,6 +65,14 @@ Notes added at write time, from the live API documentation and the boundary's
   ``published_at`` stay date-shaped.
 * Empty criteria are rejected with ``ValueError`` before any socket is opened:
   RePORTER answers a criteria-less search with HTTP 500.
+* ``Content-Encoding`` is undone before the body leaves the transport, so a
+  caller always receives plain bytes. ``urllib`` does not decompress and
+  ``requests`` does, which is why this is easy to miss: ``.decode()`` on a
+  gzip body yields replacement characters rather than raising, and the
+  failure then surfaces as nonsense content far from its cause. Nothing here
+  sends ``Accept-Encoding``, so a compressed reply is not expected — this is
+  for the proxy, the CDN, and the next header someone adds. A body that does
+  not match the encoding it declares raises rather than being passed through.
 """
 
 from __future__ import annotations
@@ -96,6 +104,36 @@ _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 class NIHReporterError(RuntimeError):
     """A RePORTER call failed, or answered with something unusable."""
+
+
+def _decompressed(headers, raw: bytes) -> bytes:
+    """Undo `Content-Encoding`. `urllib` does not, and `requests` does.
+
+    Left undone, `.decode()` turns a gzip body into replacement characters
+    rather than raising, so the failure surfaces far downstream as nonsense
+    content instead of an error. Nothing here sends `Accept-Encoding`, so a
+    compressed reply is not expected — but a proxy or a server that
+    compresses anyway must not become garbage in the output.
+
+    Raises rather than returning the compressed bytes when the body does not
+    match what the header claims: returning them is exactly the silent-garbage
+    path this exists to remove, and the caller reports a failed source.
+    """
+    encoding = (headers.get("Content-Encoding") or "").strip().lower()
+    if encoding in ("", "identity"):
+        return raw
+    if encoding == "gzip":
+        import gzip
+
+        return gzip.decompress(raw)
+    if encoding == "deflate":
+        import zlib
+
+        try:
+            return zlib.decompress(raw)
+        except zlib.error:  # raw deflate, no zlib wrapper
+            return zlib.decompress(raw, -zlib.MAX_WBITS)
+    raise ValueError(f"unsupported Content-Encoding {encoding!r}")
 
 
 def build_criteria(
@@ -380,11 +418,13 @@ def _post_json(url: str, payload: dict, *, timeout_s: float, user_agent: str) ->
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout_s) as response:
-            raw = response.read()
+            raw = _decompressed(response.headers, response.read())
     except urllib.error.HTTPError as exc:
         detail = ""
         try:
-            detail = exc.read().decode("utf-8", "replace")[:200]
+            detail = _decompressed(exc.headers or {}, exc.read()).decode(
+                "utf-8", "replace"
+            )[:200]
         except Exception:  # pragma: no cover - body already consumed
             pass
         raise NIHReporterError(

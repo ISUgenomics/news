@@ -50,6 +50,14 @@ Details the contract above leaves open, pinned here because tests pin them:
 * The title is the one best-effort field: if metadata extraction fails or
   finds nothing, ``title`` is ``None`` and the text is still returned. A
   missing title never turns a successful extraction into an error.
+* ``Content-Encoding`` is undone before the body leaves the transport, so a
+  caller always receives plain bytes. ``urllib`` does not decompress and
+  ``requests`` does, which is why this is easy to miss: ``.decode()`` on a
+  gzip body yields replacement characters rather than raising, and the
+  failure then surfaces as nonsense content far from its cause. Nothing here
+  sends ``Accept-Encoding``, so a compressed reply is not expected — this is
+  for the proxy, the CDN, and the next header someone adds. A body that does
+  not match the encoding it declares raises rather than being passed through.
 """
 
 from __future__ import annotations
@@ -81,6 +89,36 @@ class PageFetchError(RuntimeError):
         super().__init__(message)
         self.url = url
         self.status = status
+
+
+def _decompressed(headers, raw: bytes) -> bytes:
+    """Undo `Content-Encoding`. `urllib` does not, and `requests` does.
+
+    Left undone, `.decode()` turns a gzip body into replacement characters
+    rather than raising, so the failure surfaces far downstream as nonsense
+    content instead of an error. Nothing here sends `Accept-Encoding`, so a
+    compressed reply is not expected — but a proxy or a server that
+    compresses anyway must not become garbage in the output.
+
+    Raises rather than returning the compressed bytes when the body does not
+    match what the header claims: returning them is exactly the silent-garbage
+    path this exists to remove, and the caller reports a failed source.
+    """
+    encoding = (headers.get("Content-Encoding") or "").strip().lower()
+    if encoding in ("", "identity"):
+        return raw
+    if encoding == "gzip":
+        import gzip
+
+        return gzip.decompress(raw)
+    if encoding == "deflate":
+        import zlib
+
+        try:
+            return zlib.decompress(raw)
+        except zlib.error:  # raw deflate, no zlib wrapper
+            return zlib.decompress(raw, -zlib.MAX_WBITS)
+    raise ValueError(f"unsupported Content-Encoding {encoding!r}")
 
 
 def page_main_text(
@@ -225,10 +263,18 @@ def _open_url_urllib(
     request = urllib.request.Request(url, headers=dict(headers), method="GET")
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return int(response.status), dict(response.headers), response.read()
+            return (
+                int(response.status),
+                dict(response.headers),
+                _decompressed(response.headers, response.read()),
+            )
     except urllib.error.HTTPError as exc:
         with exc:
-            return int(exc.code), dict(exc.headers or {}), exc.read()
+            return (
+                int(exc.code),
+                dict(exc.headers or {}),
+                _decompressed(exc.headers or {}, exc.read()),
+            )
 
 
 _HORIZONTAL_WS = re.compile(r"[^\S\n]+")

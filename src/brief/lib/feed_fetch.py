@@ -50,6 +50,14 @@ Details the contract above leaves implicit:
   to build a ``urllib`` object. The default transport speaks http and https
   only: ``urllib`` would otherwise open ``file://`` and read local disk for
   any URL that reached this module from a config file.
+* ``Content-Encoding`` is undone before the body leaves the transport, so a
+  caller always receives plain bytes. ``urllib`` does not decompress and
+  ``requests`` does, which is why this is easy to miss: ``.decode()`` on a
+  gzip body yields replacement characters rather than raising, and the
+  failure then surfaces as nonsense content far from its cause. Nothing here
+  sends ``Accept-Encoding``, so a compressed reply is not expected — this is
+  for the proxy, the CDN, and the next header someone adds. A body that does
+  not match the encoding it declares raises rather than being passed through.
 """
 
 from __future__ import annotations
@@ -81,6 +89,36 @@ OpenURL = Callable[
 
 class FeedFetchError(RuntimeError):
     """The feed could not be fetched or yielded no parseable entries."""
+
+
+def _decompressed(headers, raw: bytes) -> bytes:
+    """Undo `Content-Encoding`. `urllib` does not, and `requests` does.
+
+    Left undone, `.decode()` turns a gzip body into replacement characters
+    rather than raising, so the failure surfaces far downstream as nonsense
+    content instead of an error. Nothing here sends `Accept-Encoding`, so a
+    compressed reply is not expected — but a proxy or a server that
+    compresses anyway must not become garbage in the output.
+
+    Raises rather than returning the compressed bytes when the body does not
+    match what the header claims: returning them is exactly the silent-garbage
+    path this exists to remove, and the caller reports a failed source.
+    """
+    encoding = (headers.get("Content-Encoding") or "").strip().lower()
+    if encoding in ("", "identity"):
+        return raw
+    if encoding == "gzip":
+        import gzip
+
+        return gzip.decompress(raw)
+    if encoding == "deflate":
+        import zlib
+
+        try:
+            return zlib.decompress(raw)
+        except zlib.error:  # raw deflate, no zlib wrapper
+            return zlib.decompress(raw, -zlib.MAX_WBITS)
+    raise ValueError(f"unsupported Content-Encoding {encoding!r}")
 
 
 def fetch_feed(
@@ -256,10 +294,14 @@ def _urllib_open(
     request = urllib.request.Request(url, headers=dict(headers), method="GET")
     try:
         with urllib.request.urlopen(request, timeout=timeout_s) as response:
-            return response.status, dict(response.headers), response.read()
+            return (
+                response.status,
+                dict(response.headers),
+                _decompressed(response.headers, response.read()),
+            )
     except urllib.error.HTTPError as exc:
         # 304 and 4xx/5xx arrive here; the caller decides what they mean.
-        body = exc.read()
+        body = _decompressed(exc.headers or {}, exc.read())
         exc.close()
         return exc.code, dict(exc.headers), body
 

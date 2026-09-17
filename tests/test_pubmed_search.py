@@ -748,7 +748,11 @@ def test_module_imports_only_the_standard_library():
             elif node.module:
                 roots.add(node.module.split(".")[0])
 
-    assert roots == {"__future__", "datetime", "json", "re", "urllib"}
+    # gzip and zlib are stdlib and are imported lazily, inside
+    # _decompressed, only when a server actually compressed the reply.
+    assert roots == {
+        "__future__", "datetime", "json", "re", "urllib", "gzip", "zlib",
+    }
 
 
 def test_module_imports_nothing_from_the_app():

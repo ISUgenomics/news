@@ -55,6 +55,14 @@ Notes confirmed against the live API (2026-09-17):
   parameters on ``build_request`` and ``search_awards`` rather than constants —
   a caller searching ``loans`` or ``idvs`` passes names from that group's mapping.
 * Paging is ``page``/``limit`` with ``page_metadata.hasNext`` as the stop signal.
+* ``Content-Encoding`` is undone before the body leaves the transport, so a
+  caller always receives plain bytes. ``urllib`` does not decompress and
+  ``requests`` does, which is why this is easy to miss: ``.decode()`` on a
+  gzip body yields replacement characters rather than raising, and the
+  failure then surfaces as nonsense content far from its cause. Nothing here
+  sends ``Accept-Encoding``, so a compressed reply is not expected — this is
+  for the proxy, the CDN, and the next header someone adds. A body that does
+  not match the encoding it declares raises rather than being passed through.
 """
 
 from __future__ import annotations
@@ -124,6 +132,36 @@ MAX_LIMIT = 100
 
 class UsaspendingError(RuntimeError):
     """The API was unreachable, refused the request, or answered nonsense."""
+
+
+def _decompressed(headers, raw: bytes) -> bytes:
+    """Undo `Content-Encoding`. `urllib` does not, and `requests` does.
+
+    Left undone, `.decode()` turns a gzip body into replacement characters
+    rather than raising, so the failure surfaces far downstream as nonsense
+    content instead of an error. Nothing here sends `Accept-Encoding`, so a
+    compressed reply is not expected — but a proxy or a server that
+    compresses anyway must not become garbage in the output.
+
+    Raises rather than returning the compressed bytes when the body does not
+    match what the header claims: returning them is exactly the silent-garbage
+    path this exists to remove, and the caller reports a failed source.
+    """
+    encoding = (headers.get("Content-Encoding") or "").strip().lower()
+    if encoding in ("", "identity"):
+        return raw
+    if encoding == "gzip":
+        import gzip
+
+        return gzip.decompress(raw)
+    if encoding == "deflate":
+        import zlib
+
+        try:
+            return zlib.decompress(raw)
+        except zlib.error:  # raw deflate, no zlib wrapper
+            return zlib.decompress(raw, -zlib.MAX_WBITS)
+    raise ValueError(f"unsupported Content-Encoding {encoding!r}")
 
 
 def build_request(
@@ -369,11 +407,15 @@ def _post_json(url: str, body: dict, timeout_s: float) -> Any:
     try:
         with urllib.request.urlopen(request, timeout=timeout_s) as response:
             charset = response.headers.get_content_charset() or "utf-8"
-            raw = response.read().decode(charset, errors="replace")
+            raw = _decompressed(response.headers, response.read()).decode(
+                charset, errors="replace"
+            )
     except urllib.error.HTTPError as exc:
         detail = ""
         try:
-            detail = exc.read().decode("utf-8", errors="replace")[:500]
+            detail = _decompressed(exc.headers or {}, exc.read()).decode(
+                "utf-8", errors="replace"
+            )[:500]
         except Exception:  # pragma: no cover - body already consumed
             pass
         raise UsaspendingError(
