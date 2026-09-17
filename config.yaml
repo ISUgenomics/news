@@ -39,8 +39,22 @@ select:
   chars_per_token: 4            # budgeting heuristic; no provider exposes a tokenizer
   output_reserve_tokens: 4000
   prompt_overhead_tokens: 1500
-  max_item_chars: 6000          # per-item body cap sent to the model
+  # Per-item cap on the text sent to the model. This caps the RENDERED item —
+  # the body plus a short header carrying source, date, title and URL — not the
+  # body alone, so it must exceed ingest.body_cap_bytes below by enough to cover
+  # that header or the longest items are cut by a few hundred characters.
+  #
+  # ingest.body_cap_bytes is the real ceiling: a body is already cut to that many
+  # bytes when it is stored, so nothing here can recover more than that. 9216 is
+  # 8192 plus room for the header. There is plenty of budget: a typical week
+  # sends ~44k characters against ~109k on a 32k-context model.
+  max_item_chars: 9216
 
 ingest:
   silent_source_days: 14        # alert when a source has produced nothing for this long
-  body_cap_bytes: 8192          # storage cap, applied by db.py
+  # Storage cap, applied by db.py when the row is written, so it is permanent
+  # for rows already stored. Raising it only affects future fetches — and a page
+  # whose body was previously cut will hash differently once it is stored in
+  # full, so it arrives as a NEW row alongside the old one and the model sees
+  # both. Raise it only if you also mean to clear the affected rows.
+  body_cap_bytes: 8192

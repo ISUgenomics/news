@@ -538,3 +538,63 @@ def test_a_link_the_model_wrote_does_not_survive_into_the_page(conn):
     hrefs = re.findall(r'href="([^"]+)"', html)
     assert hrefs, "the citation link is still there"
     assert all("evil.test" not in h for h in hrefs), f"only cited sources may be links: {hrefs}"
+
+
+def test_the_item_cap_applies_to_the_rendered_item_not_just_the_body(conn):
+    """Why a cap equal to the storage cap still truncated the longest items.
+
+    `select` renders each item as a header (source, date, title, url) plus the
+    body, and the cap applies to that whole string. Setting max_item_chars to
+    the storage cap therefore still clips the longest items by the length of the
+    header, which is exactly what a week of real data showed.
+    """
+    body = "x" * 500
+    db.upsert_items(
+        conn,
+        [
+            Item(
+                source="feed_a",
+                url="https://example.test/long",
+                title="A long AI award announcement",
+                body=body,
+                published_at="2026-09-16T00:00:00Z",
+            )
+        ],
+        now=NOW,
+        source_key="feed_a",
+    )
+    profile = make_profile()
+
+    at_body_length = select_mod.select(
+        [r for r in db.items_fetched_since(conn, ["feed_a"], since=NOW - timedelta(days=7))
+         if "long" in r["url"]],
+        profile,
+        context_window_tokens=100_000,
+        settings={"max_item_chars": len(body)},
+    )
+    assert at_body_length.truncated, "the header pushes the rendered item over the cap"
+
+    with_header_room = select_mod.select(
+        [r for r in db.items_fetched_since(conn, ["feed_a"], since=NOW - timedelta(days=7))
+         if "long" in r["url"]],
+        profile,
+        context_window_tokens=100_000,
+        settings={"max_item_chars": len(body) + 1024},
+    )
+    assert not with_header_room.truncated
+
+
+def test_the_shipped_config_leaves_room_for_the_header():
+    """The two caps must not be equal, or the longest item is always clipped."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    cfg = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
+    body_cap = cfg["ingest"]["body_cap_bytes"]
+    item_cap = cfg["select"]["max_item_chars"]
+    assert item_cap > body_cap, (
+        f"max_item_chars ({item_cap}) must exceed body_cap_bytes ({body_cap}) by "
+        f"enough for the per-item header, or every maximum-length body is truncated"
+    )
