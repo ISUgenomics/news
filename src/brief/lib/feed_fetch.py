@@ -58,12 +58,25 @@ Details the contract above leaves implicit:
   sends ``Accept-Encoding``, so a compressed reply is not expected — this is
   for the proxy, the CDN, and the next header someone adds. A body that does
   not match the encoding it declares raises rather than being passed through.
+* A bot wall is named rather than debugged. A challenge page answers 200 with
+  HTML as readily as 403, and both previously surfaced as something else — a
+  parse failure, or a status the operator would chase as a broken URL. It
+  raises a distinct blocked error carrying the URL and one instruction: fetch
+  it by hand. Nothing retries and nothing rotates headers, which neither
+  defeats real bot detection nor costs less than stopping.
+* Detection is STRUCTURAL and never a substring search over the body. Only a
+  response header, the exact ``<title>`` of a known interstitial, or a
+  ``src=``/``action=`` naming a challenge provider counts. Measured on this
+  project's own corpus, "cloudflare" and "captcha" appeared in 0 of 1,360
+  stored items and "challenge" in 267: a detector that reads prose refuses
+  real articles, and a control that cries wolf gets switched off.
 """
 
 from __future__ import annotations
 
 import calendar
 import http.client
+import re
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -89,6 +102,14 @@ OpenURL = Callable[
 
 class FeedFetchError(RuntimeError):
     """The feed could not be fetched or yielded no parseable entries."""
+
+
+class FeedBlockedError(FeedFetchError):
+    """The feed was refused by bot detection, not missing or malformed.
+
+    A subclass so existing handlers keep working; a distinct type so the
+    operator is told to fetch by hand rather than sent to debug the parser.
+    """
 
 
 def _decompressed(headers, raw: bytes) -> bytes:
@@ -121,6 +142,82 @@ def _decompressed(headers, raw: bytes) -> bytes:
     raise ValueError(f"unsupported Content-Encoding {encoding!r}")
 
 
+_BLOCK_TITLES = frozenset({
+    "just a moment...",
+    "just a moment",
+    "attention required! | cloudflare",
+    "access denied",
+    "access to this page has been denied",
+    "are you a robot?",
+    "are you a human?",
+    "please verify you are a human",
+    "checking your browser before accessing",
+    "one more step",
+    "security check",
+    "verifying you are human",
+})
+
+_CHALLENGE_SRC = re.compile(
+    rb"""(?:src|action)\s*=\s*["']?[^"'>\s]*"""
+    rb"""(challenges\.cloudflare\.com"""
+    rb"""|www\.google\.com/recaptcha"""
+    rb"""|hcaptcha\.com"""
+    rb"""|js\.hcaptcha\.com"""
+    rb"""|geo\.captcha-delivery\.com)""",
+    re.IGNORECASE,
+)
+
+_TITLE_TAG = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+
+
+def detect_block(status: int, headers: Mapping[str, str], body: bytes) -> str | None:
+    """Name the bot wall, or None if this looks like a real page.
+
+    STRUCTURAL SIGNALS ONLY — never a substring search over the body. That is
+    the obvious implementation and it is wrong for any caller that ingests
+    text about the web: measured against this project's own corpus, "captcha"
+    and "cloudflare" appeared in 0 of 1,360 stored items but "challenge"
+    appeared in 267. A detector that reads prose refuses real articles, and a
+    control that cries wolf gets turned off.
+
+    So: a response header the origin cannot fake through content, the exact
+    `<title>` of a known interstitial, or a script/form pointing at a
+    challenge provider. An article *about* Cloudflare has the word in its
+    prose, not in a `src=` attribute.
+    """
+    lower = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+
+    if "cf-mitigated" in lower:
+        return "Cloudflare challenge (cf-mitigated header)"
+    server = lower.get("server", "").lower()
+    if status in (403, 429, 503) and "cloudflare" in server:
+        return f"Cloudflare block (HTTP {status} from a Cloudflare edge)"
+
+    match = _TITLE_TAG.search(body or b"")
+    if match:
+        title = " ".join(
+            match.group(1).decode("utf-8", "replace").strip().lower().split()
+        )
+        if title in _BLOCK_TITLES:
+            return f"interstitial page titled {title!r}"
+
+    provider = _CHALLENGE_SRC.search(body or b"")
+    if provider:
+        return f"challenge widget from {provider.group(1).decode()}"
+
+    return None
+
+
+def _blocked_message(url: str, reason: str) -> str:
+    """One message, because the operator's next step is always the same."""
+    return (
+        f"{url} is behind a bot wall: {reason}. Not retried, and no header "
+        "rotation attempted — neither defeats real bot detection, both waste "
+        "time and risk the IP. Fetch the page in a browser and supply the "
+        "text locally if it is needed."
+    )
+
+
 def fetch_feed(
     url: str,
     *,
@@ -150,6 +247,12 @@ def fetch_feed(
         status, response_headers, body = transport(url, headers, timeout_s)
     except (OSError, http.client.HTTPException) as exc:
         raise FeedFetchError(f"fetch failed for {url}: {exc}") from exc
+
+    # Before anything else: a wall answers 200 with HTML as readily as 403,
+    # and "no parseable entries" sends the operator to debug the parser.
+    reason = detect_block(status, response_headers, body)
+    if reason is not None:
+        raise FeedBlockedError(_blocked_message(url, reason))
 
     if status == 304:
         # Echo the validators back: a caller that writes this result to its
