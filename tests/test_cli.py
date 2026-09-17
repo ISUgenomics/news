@@ -569,3 +569,120 @@ def test_the_secret_names_match_the_variables_config_refers_to():
         f"config refers to {referenced - set(cli.SECRET_NAMES)}, which the keychain "
         f"lookup would never fetch"
     )
+
+
+# --- backfill ---------------------------------------------------------------
+
+
+def _backfill_project(tmp_path, stub_http):
+    root = project(tmp_path, stub_http.url + "/feed")
+    conn = db.connect(root / "data" / "items.db")
+    # Published across three past weeks, all fetched today — the shape a real
+    # first ingest produces, and the reason backfill cannot use fetched_at.
+    db.upsert_items(
+        conn,
+        [
+            Item(source="feed_a", url=f"https://example.test/{d}", title=f"An award on {d}",
+                 body="body", published_at=f"{d}T00:00:00Z")
+            for d in ("2026-08-05", "2026-08-12", "2026-08-19")
+        ],
+        now=NOW,
+        source_key="feed_a",
+    )
+    conn.close()
+    return root
+
+
+def test_backfill_plans_the_weeks_that_have_no_brief(tmp_path, stub_http):
+    root = _backfill_project(tmp_path, stub_http)
+    result = runner.invoke(
+        cli.app,
+        ["backfill", "--since", "2026-08-03", "--until", "2026-08-24", "--root", str(root), "--dry-run"],
+    )
+    plan = [e for e in events(result) if e["event"] == "backfill.plan"][0]
+    assert plan["weeks"] == ["2026-08-03", "2026-08-10", "2026-08-17", "2026-08-24"]
+    assert plan["already_done"] == []
+
+
+def test_backfill_skips_a_week_that_already_has_a_brief(tmp_path, stub_http):
+    """Backfill fills gaps; overwriting a brief you have read destroys provenance."""
+    root = _backfill_project(tmp_path, stub_http)
+    conn = db.connect(root / "data" / "items.db")
+    db.record_brief(
+        conn, profile="good", week_start="2026-08-10", generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=[], raw_response="{}",
+        result_json="{}", markdown="# already here",
+    )
+    conn.close()
+
+    result = runner.invoke(
+        cli.app,
+        ["backfill", "--since", "2026-08-03", "--until", "2026-08-17", "--root", str(root), "--dry-run"],
+    )
+    plan = [e for e in events(result) if e["event"] == "backfill.plan"][0]
+    assert "2026-08-10" not in plan["weeks"]
+    assert plan["already_done"] == ["2026-08-10"], "skipped AND reported"
+
+
+def test_backfill_never_touches_the_current_week(tmp_path, stub_http):
+    """It is in progress, not missing, and belongs to the live schedule."""
+    root = _backfill_project(tmp_path, stub_http)
+    this_week = cli.monday_of(datetime.now(timezone.utc))
+    result = runner.invoke(
+        cli.app, ["backfill", "--since", "2026-08-03", "--root", str(root), "--dry-run"]
+    )
+    plan = [e for e in events(result) if e["event"] == "backfill.plan"][0]
+    assert this_week not in plan["weeks"]
+
+
+def test_backfill_reports_a_week_with_nothing_published(tmp_path, stub_http):
+    """Silence would be indistinguishable from a week that failed."""
+    root = _backfill_project(tmp_path, stub_http)
+    result = runner.invoke(
+        cli.app,
+        ["backfill", "--since", "2026-07-06", "--until", "2026-07-13", "--root", str(root)],
+    )
+    empty = [e for e in events(result) if e["event"] == "backfill.empty_week"]
+    assert {e["week"] for e in empty} == {"2026-07-06", "2026-07-13"}
+
+
+def test_backfill_refuses_an_inverted_range_naming_both_ends(tmp_path, stub_http):
+    root = _backfill_project(tmp_path, stub_http)
+    result = runner.invoke(
+        cli.app,
+        ["backfill", "--since", "2026-08-24", "--until", "2026-08-03", "--root", str(root)],
+    )
+    bad = [e for e in events(result) if e["event"] == "backfill.bad_range"]
+    assert bad and "2026-08-24" in bad[0]["error"] and "2026-08-03" in bad[0]["error"]
+    assert result.exit_code != 0
+
+
+def test_backfill_guards_against_a_mistyped_year(tmp_path, stub_http):
+    root = _backfill_project(tmp_path, stub_http)
+    result = runner.invoke(
+        cli.app,
+        ["backfill", "--since", "2019-01-01", "--max-weeks", "3", "--root", str(root), "--dry-run"],
+    )
+    plan = [e for e in events(result) if e["event"] == "backfill.plan"][0]
+    assert len(plan["weeks"]) == 3
+    assert plan["capped"] > 300, "and it says how many it dropped rather than shortening quietly"
+
+
+def test_backfill_rejects_a_non_iso_date(tmp_path, stub_http):
+    root = _backfill_project(tmp_path, stub_http)
+    result = runner.invoke(
+        cli.app, ["backfill", "--since", "last august", "--root", str(root)]
+    )
+    assert result.exit_code != 0
+    assert "ISO" in result.output
+
+
+def test_a_dry_run_generates_nothing(tmp_path, stub_http):
+    root = _backfill_project(tmp_path, stub_http)
+    runner.invoke(
+        cli.app,
+        ["backfill", "--since", "2026-08-03", "--until", "2026-08-24", "--root", str(root), "--dry-run"],
+    )
+    conn = db.connect(root / "data" / "items.db")
+    assert db.brief_weeks(conn, "good") == []
+    conn.close()

@@ -263,6 +263,49 @@ def set_source_state(
     conn.commit()
 
 
+def items_published_between(
+    conn: sqlite3.Connection,
+    source_keys: Sequence[str],
+    *,
+    start: str,
+    end: str,
+) -> list[dict[str, Any]]:
+    """Rows a source *published* in ``[start, end)``. For backfill only.
+
+    The live weekly run selects on ``fetched_at`` — "new to us" — because an old
+    award first indexed this week is news to its reader. A backfill needs the
+    opposite question: what happened during that week, whenever we happened to
+    learn it. Every row in this database was fetched on the same day the
+    pipeline first ran, so a ``fetched_at`` backfill would pile every item into
+    that one week and leave every earlier week empty.
+
+    Rows with no ``published_at`` are excluded rather than guessed at. A backfill
+    is a claim about a particular week, and an item whose date we do not know
+    cannot support one.
+    """
+    if not source_keys:
+        return []
+    placeholders = ",".join("?" for _ in source_keys)
+    cur = conn.execute(
+        f"SELECT id, source, source_key, external_id, url, title, body,"
+        f" published_at, fetched_at"
+        f" FROM items WHERE source_key IN ({placeholders})"
+        f"   AND published_at IS NOT NULL"
+        f"   AND published_at >= ? AND published_at < ?"
+        f" ORDER BY published_at DESC, id DESC",
+        (*source_keys, start, end),
+    )
+    return [dict(r) for r in cur.fetchall()]
+
+
+def brief_weeks(conn: sqlite3.Connection, profile: str) -> list[str]:
+    """Weeks this profile already has a brief for, as ISO dates."""
+    cur = conn.execute(
+        "SELECT week_start FROM briefs WHERE profile = ? ORDER BY week_start", (profile,)
+    )
+    return [r["week_start"] for r in cur.fetchall()]
+
+
 def last_seen_by_source(conn: sqlite3.Connection) -> dict[str, str]:
     """Most recent ``fetched_at`` per source key, for the silence check.
 

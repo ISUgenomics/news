@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import sys
 import traceback
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +31,7 @@ from brief import (
 from brief.deliver import AlreadySent, deliver as deliver_one
 from brief.lib.config_env_interpolate import MissingConfigVar
 from brief.lib.macos_keychain_read import KeychainError, is_available, read_secrets
+from brief.lib.period_backfill_plan import period_bounds, plan_backfill
 from brief.lib.llm_json_contract import JsonContractError
 from brief.models import Profile
 from brief.profile import (
@@ -291,11 +292,24 @@ def synthesize(
 
 
 def _synthesize_one(
-    conn, prof: Profile, *, week_start: str, now: datetime, root: Path
+    conn,
+    prof: Profile,
+    *,
+    week_start: str,
+    now: datetime,
+    root: Path,
+    rows: list[dict[str, Any]] | None = None,
 ) -> None:
-    rows = db.items_fetched_since(
-        conn, [r.source_key() for r in prof.sources], since=now - timedelta(days=7)
-    )
+    """Synthesize one week. `rows` lets backfill supply a different window.
+
+    Everything after the selection is identical, which is the point: a
+    backfilled brief goes through the same prompt, the same JSON contract and
+    the same citation check as a live one, so the two are comparable.
+    """
+    if rows is None:
+        rows = db.items_fetched_since(
+            conn, [r.source_key() for r in prof.sources], since=now - timedelta(days=7)
+        )
 
     try:
         provider = llm.require_provider(prof.llm)
@@ -456,6 +470,102 @@ def _record_stub(
         result_json=json.dumps({"stub": True, "reason": reason}),
         markdown=markdown,
     )
+
+
+@app.command()
+def backfill(
+    since: str = typer.Option(..., help="Earliest week to fill, any ISO date in it"),
+    until: str | None = typer.Option(None, help="Latest week; default is last week"),
+    profile: str | None = typer.Option(None, "--profile"),
+    all_profiles: bool = typer.Option(False, "--all"),
+    root: Path = typer.Option(ROOT),
+    max_weeks: int = typer.Option(52, help="Guard against a mistyped year"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the plan, generate nothing"),
+) -> None:
+    """Generate briefs for past weeks that do not have one.
+
+    Backfill differs from the weekly run in one deliberate way: it selects items
+    by **publication date**, not by when we fetched them. The live run asks
+    "what is new to us"; a backfill asks "what happened that week", and those
+    are different questions with different answers.
+
+    A week that already has a brief is skipped, not regenerated. Backfill fills
+    gaps, and quietly overwriting a brief you have already read would destroy
+    its provenance. Use `synthesize --week X --force` to rebuild one on purpose.
+
+    Expect older weeks to be thin. The feeds serve only their most recent
+    entries, so how far back this reaches is a property of the sources rather
+    than of the range you ask for.
+    """
+    config, _sources, profiles = load_world(root)
+    now = datetime.now(timezone.utc)
+    conn = db.connect(root / (str(config.get("db") or "data/items.db")))
+
+    try:
+        since_date = date.fromisoformat(since)
+        until_date = date.fromisoformat(until) if until else None
+    except ValueError as exc:
+        raise typer.BadParameter(f"dates must be ISO (YYYY-MM-DD): {exc}")
+
+    failures = 0
+    for prof in pick(profiles, profile, all_profiles):
+        try:
+            plan = plan_backfill(
+                since=since_date,
+                until=until_date,
+                cadence="weekly",
+                done=[date.fromisoformat(w) for w in db.brief_weeks(conn, prof.name)],
+                today=now.date(),
+                max_periods=max_weeks,
+            )
+        except ValueError as exc:
+            failures += 1
+            log("backfill.bad_range", profile=prof.name, error=str(exc))
+            continue
+
+        log(
+            "backfill.plan",
+            profile=prof.name,
+            weeks=[w.isoformat() for w in plan.periods],
+            already_done=[w.isoformat() for w in plan.already_done],
+            capped=plan.capped,
+            since=plan.since.isoformat(),
+            until=plan.until.isoformat(),
+        )
+        if dry_run or not plan:
+            continue
+
+        for week in plan.periods:
+            start, end = period_bounds(week, "weekly")
+            rows = db.items_published_between(
+                conn,
+                [r.source_key() for r in prof.sources],
+                start=start.isoformat(),
+                end=end.isoformat(),
+            )
+            if not rows:
+                log("backfill.empty_week", profile=prof.name, week=week.isoformat())
+                continue
+            try:
+                _synthesize_one(
+                    conn,
+                    prof,
+                    week_start=week.isoformat(),
+                    now=now,
+                    root=root,
+                    rows=rows,
+                )
+            except Exception as exc:
+                failures += 1
+                log(
+                    "backfill.failed",
+                    profile=prof.name,
+                    week=week.isoformat(),
+                    error=str(exc),
+                    type=type(exc).__name__,
+                )
+    if failures:
+        raise typer.Exit(code=1)
 
 
 @app.command()

@@ -153,3 +153,14 @@ boundary = "docs/seeds/macos-keychain-read.md"
 when_to_use = "Your program needs a token on a machine where you would rather not leave it in a dotenv file — a scheduled job on your own laptop, a personal tool — and you want 'no such secret' to be an ordinary answer rather than a crash."
 demand = "Second signal: ~/AI/utility/ClaudeUsageBar names macos-keychain-read as a sibling seed candidate, having implemented the same read in Swift."
 
+[[seed]]
+slug = "period-backfill-plan"
+path = "src/brief/lib/period_backfill_plan.py"
+test = "tests/test_period_backfill_plan.py"
+planted = "2026-09-17"
+band = "strong"
+score = 16
+tests = 40
+boundary = "docs/seeds/period-backfill-plan.md"
+when_to_use = "You run something on a schedule and need to fill in the periods it missed - the weeks before it existed, or the runs that failed - and you want the list of periods to work through, oldest first, with the ones already done left out."
+

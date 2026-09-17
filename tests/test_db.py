@@ -380,3 +380,74 @@ def test_one_source_can_be_healthy_for_one_profile_and_silent_for_another(conn):
         threshold_days=14,
     )
     assert silent == [("nsf#broken", None)]
+
+
+def test_items_published_between_uses_the_publication_date_not_the_fetch_date(conn):
+    """The whole reason backfill needs its own query.
+
+    Every row in a fresh database was fetched on the same day, so selecting on
+    fetched_at piles every item into that one week and leaves every earlier week
+    empty. Backfill asks what happened during a week, not what we learned then.
+    """
+    db.upsert_items(
+        conn,
+        [
+            item(url="https://example.test/august", published_at="2026-08-05T00:00:00Z"),
+            item(url="https://example.test/september", published_at="2026-09-02T00:00:00Z"),
+        ],
+        now=NOW,  # both fetched today
+        source_key="feed_a",
+    )
+
+    august = db.items_published_between(
+        conn, ["feed_a"], start="2026-08-03", end="2026-08-10"
+    )
+    assert [r["url"] for r in august] == ["https://example.test/august"]
+
+    by_fetch = db.items_fetched_since(conn, ["feed_a"], since=NOW - timedelta(days=7))
+    assert len(by_fetch) == 2, "both look like this week by fetch date; that is the problem"
+
+
+def test_items_published_between_is_half_open(conn):
+    db.upsert_items(
+        conn,
+        [
+            item(url="https://example.test/start", published_at="2026-08-03T00:00:00Z"),
+            item(url="https://example.test/end", published_at="2026-08-10T00:00:00Z"),
+        ],
+        now=NOW,
+        source_key="feed_a",
+    )
+    got = db.items_published_between(conn, ["feed_a"], start="2026-08-03", end="2026-08-10")
+    assert [r["url"] for r in got] == ["https://example.test/start"], (
+        "the end is exclusive, so the next week's Monday belongs to the next week"
+    )
+
+
+def test_an_item_with_no_publication_date_cannot_support_a_backfill(conn):
+    """A backfill is a claim about a week; an undated item cannot back one."""
+    db.upsert_items(
+        conn, [item(url="https://example.test/undated", published_at=None)], now=NOW,
+        source_key="feed_a",
+    )
+    assert db.items_published_between(conn, ["feed_a"], start="2020-01-01", end="2030-01-01") == []
+
+
+def test_items_published_between_respects_the_source_key(conn):
+    db.upsert_items(
+        conn, [item(source="nsf", published_at="2026-08-05T00:00:00Z")], now=NOW,
+        source_key="nsf#aaaa",
+    )
+    assert db.items_published_between(conn, ["nsf#bbbb"], start="2026-08-03", end="2026-08-10") == []
+    assert db.items_published_between(conn, ["nsf#aaaa"], start="2026-08-03", end="2026-08-10")
+
+
+def test_brief_weeks_lists_what_is_already_done(conn):
+    for week in ("2026-09-07", "2026-08-31"):
+        db.record_brief(
+            conn, profile="p", week_start=week, generated_at=NOW, provider="x", model="m",
+            prompt_hash="h", input_item_ids=[], raw_response="{}", result_json="{}",
+            markdown="#",
+        )
+    assert db.brief_weeks(conn, "p") == ["2026-08-31", "2026-09-07"]
+    assert db.brief_weeks(conn, "other") == []

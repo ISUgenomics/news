@@ -5,14 +5,14 @@
 # news — codeLibrary status
 
 **Repo:** `/Users/andrewseverin/AI/news`  
-**HEAD:** 4ce28ab on `feat/scaffold`  
+**HEAD:** fa73475 on `feat/scaffold`  
 **Generated:** 2026-09-17 — refresh with `/lib-status`
 
 ## Extracted into codeLibrary
 
 None yet. `/lib-harvest` proposes candidates.
 
-## Seeds awaiting graduation (13)
+## Seeds awaiting graduation (14)
 
 Planted by `/lib-seed`, shaped for extraction, not extracted yet.
 
@@ -29,12 +29,13 @@ Planted by `/lib-seed`, shaped for extraction, not extracted yet.
 - `src/brief/lib/markdown_email.py` — planted 2026-09-17, band strong
 - `src/brief/lib/config_env_interpolate.py` — planted 2026-09-17, band strong
 - `src/brief/lib/macos_keychain_read.py` — planted 2026-09-17, band strong
+- `src/brief/lib/period_backfill_plan.py` — planted 2026-09-17, band strong
 
 Graduate one when a second project wants it: `/lib-extract`
 
 ## Structure
 
-49 Python modules scanned.
+50 Python modules scanned.
 
 **Packages:** `brief`, `tests`
 
