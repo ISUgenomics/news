@@ -77,6 +77,19 @@ llm:
   seed: 42
   temperature: 0
 
+  # There is no switch for constrained decoding, deliberately. When the chosen
+  # provider can restrict its own sampler to a JSON Schema, synthesis hands it
+  # `prompts/schema.json` narrowed to this profile's section names, and a
+  # malformed or undeclared reply stops being possible. Ollama can; the coding
+  # CLIs cannot and fall back to the extract-validate-retry path. The capability
+  # is detected from the provider, so nothing here needs to name it.
+  #
+  # It constrains SHAPE, not TRUTH: measured, the decoder honours `required`,
+  # `additionalProperties`, `enum` and `minItems` but not `uniqueItems`, and a
+  # model told to violate its schema obeyed the grammar and padded a section
+  # with junk. Validation therefore still runs on every reply, constrained or
+  # not. Do not read "constrained" as "checked".
+
   # How long the server holds the model after a request. The default is five
   # minutes; a backfill that pauses between weeks can lose an 18 GB model in the
   # gap and pay tens of seconds to reload it. Local provider only.

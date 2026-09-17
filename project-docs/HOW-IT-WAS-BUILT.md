@@ -93,6 +93,7 @@ Every one of these came from a live run, not from a test suite that was green:
 | the model said "no PI named" | the seeds extracted the PI; the app dropped it before the prompt |
 | 83% of an awards article lost | the storage cap, measured by refetching the article whole |
 | the weekly brief filled with 2024 | the deep historical ingest made every old award "new to us" |
+| `merged: [[1, 1]]`, three runs running | the schema let a story be merged with itself; `uniqueItems` was missing |
 
 ## Decisions made by measurement, not assertion
 
@@ -118,7 +119,24 @@ Each of these started as an assumption and was changed by a number.
 
   the local model is too      →  zero fabricated figures or   →  made it the default
   weak to be trusted             names across a whole brief
+
+  a text-only model can only  →  Ollama enforces required,    →  constrained decoding
+  be asked for JSON and          additionalProperties, enum      became rung 1 of the
+  corrected afterwards           and minItems IN THE DECODER     contract; contributed
+                                 — told to emit an empty         upstream to the
+                                 array it could not              ollama-local-llm feature
+
+  so validation is now        →  uniqueItems is NOT enforced, →  validation kept on
+  redundant                      and told to break its           every reply, and the
+                                 schema the model obeyed the     docstring says why
+                                 grammar and padded a section
+                                 with junk instead
 ```
+
+That last pair is the one worth carrying elsewhere. Constraining the decoder
+does not make the model correct, it changes *which* way it is wrong: from
+"unparseable" to "well-formed and wrong". The second is harder to notice, so
+the check that catches it has to survive the upgrade that seems to retire it.
 
 ## Rules that earned their keep
 

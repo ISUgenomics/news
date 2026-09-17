@@ -1,12 +1,40 @@
-"""llm_json_contract — get a schema-valid JSON object out of a text-only model.
+"""llm_json_contract — get a schema-valid JSON object out of a model, reliably.
 
-Coding CLIs (`claude -p`, `codex exec`) and Ollama return prose, not structured
-output. This module enforces the contract after the call: it takes any
-``complete(messages) -> str`` callable, finds the first JSON object in the reply
-(inside ```json fences, after "Here is the result:", or bare), hands it to an
-injected ``validate(obj) -> str | None``, and on failure appends the reply and
-the error as a corrective turn and asks once more. The caller gets the object
-plus every raw reply, in order, so the evidence is kept when it matters.
+Asking a model to "reply with JSON" and hoping is the weak version of this. The
+module is a ladder of four rungs, strongest first, and a caller takes the
+highest rung its provider supports:
+
+  1. CONSTRAIN. Pass ``schema`` and ``complete`` is called with it, so a
+     provider that supports constrained decoding restricts its sampler to
+     tokens that keep the reply conformant. The error does not happen.
+  2. EXTRACT. Find the first JSON object in the reply -- inside ```json fences,
+     after "Here is the result:", or bare. Coding CLIs (`claude -p`,
+     `codex exec`) have no constrained mode and will wrap or preface it.
+  3. VALIDATE AND RETRY. Hand the object to an injected
+     ``validate(obj) -> str | None``; on failure, append the reply and the
+     error as a corrective turn and ask once more.
+  4. FAIL LOUDLY. Out of attempts, raise with every raw reply and every error,
+     in order, so the caller can show its reader a stub rather than silence.
+
+Rung 1 does not retire rungs 2-4, and that is the point most easily got wrong.
+Measured against Ollama 0.33 with a 27B model and a real schema:
+
+    enforced by the decoder      type, required, additionalProperties, enum,
+                                 minItems -- told to emit an empty array where
+                                 minItems was 1, it could not
+    NOT enforced by the decoder  uniqueItems -- asked for [[1, 1]] it obliged,
+                                 and only the validator caught it
+
+So a constrained reply can still be invalid, and a grammar in any case
+constrains shape and never truth: told to violate its schema, the model obeyed
+the grammar and padded a declared section with junk to fill it. Constraint
+moves the failure from "unparseable" to "well-formed and wrong". Validation is
+the rung that catches the second kind, and it runs whether or not rung 1 did.
+
+The corollary is worth stating because it is free: put everything the caller
+already knows into the schema. A section name that comes from configuration
+belongs in an ``enum``, not in a sentence asking the model to copy it
+faithfully -- an unrepresentable mistake beats a corrected one.
 
 Contract:
   - ``messages`` is never mutated; retries operate on a deep copy, and each
@@ -18,10 +46,18 @@ Contract:
     that string is what the model sees on retry.
   - Exhausting ``retries`` raises ``JsonContractError`` carrying ``responses``
     and ``errors``; exceptions from ``complete`` propagate untouched.
+  - ``schema`` is passed to ``complete`` as the keyword ``schema`` on every
+    attempt or on none. It is never merged into the prompt, never inspected,
+    and never used as the validator: a caller that wants both passes the same
+    object twice, deliberately, because the two jobs can legitimately differ
+    (a constrained call plus a validator that also checks what the grammar
+    cannot express).
 
 Deliberately not here: provider selection or availability, prompt rendering,
-domain checks on the object's content (citations, word counts), logging, and
-persistence. Those belong to the caller, which knows the app.
+domain checks on the object's content (citations, word counts), logging,
+persistence, and any provider's spelling of the schema parameter -- a
+one-line lambda at the call site adapts ``format`` or ``response_format``, and
+teaching this module those names would make it a provider registry.
 
 Dependencies: stdlib only for the loop and extraction. ``jsonschema`` is
 imported lazily by ``jsonschema_validator`` alone, because a JSON Schema file
@@ -173,10 +209,11 @@ def jsonschema_validator(schema: dict) -> Callable[[Any], str | None]:
 
 
 def complete_json(
-    complete: Callable[[list[dict]], str],
+    complete: Callable[..., str],
     messages: list[dict],
     validate: Callable[[Any], str | None],
     *,
+    schema: dict | None = None,
     retries: int = 1,
     retry_template: str = DEFAULT_RETRY_TEMPLATE,
 ) -> ContractResult:
@@ -186,6 +223,22 @@ def complete_json(
     that failed, then a user turn rendered from ``retry_template`` with
     ``{error}`` and ``{rule}`` -- so the model sees both what it wrote and why
     it was rejected. ``messages`` itself is never mutated.
+
+    Passing ``schema`` calls ``complete(conversation, schema=schema)`` on every
+    attempt, including retries, for a provider that can constrain its decoding
+    to a JSON Schema. It is the strongest rung of this contract and the cheapest
+    one, because the failure never happens rather than being corrected. It does
+    not replace ``validate`` -- see the module docstring for what a grammar does
+    and does not enforce, measured.
+
+    A provider spells the parameter its own way (Ollama ``format``, OpenAI
+    ``response_format``). Adapt at the call site rather than teaching this
+    module a provider's vocabulary::
+
+        complete_json(
+            lambda msgs, schema: provider.complete(msgs, response_format=schema),
+            messages, validate, schema=my_schema,
+        )
 
     Raises ``JsonContractError`` when the last allowed attempt still fails, and
     ``ValueError`` when ``retries`` is negative or ``retry_template`` is not a
@@ -209,7 +262,11 @@ def complete_json(
     errors: list[str] = []
 
     for attempt in range(retries + 1):
-        reply = complete(copy.deepcopy(conversation))
+        attempt_messages = copy.deepcopy(conversation)
+        if schema is None:
+            reply = complete(attempt_messages)
+        else:
+            reply = complete(attempt_messages, schema=schema)
         responses.append(reply)
         try:
             obj = extract_json_object(reply)

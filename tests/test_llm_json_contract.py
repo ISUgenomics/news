@@ -516,3 +516,78 @@ print("ok")
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "ok" in proc.stdout
+
+
+# --- rung 1: constrained decoding --------------------------------------------
+
+
+def test_a_one_argument_complete_still_works_when_no_schema_is_given():
+    """Every existing caller passes `complete(messages)`. Adding the rung must
+    not require them to grow a keyword they have no use for."""
+    calls = []
+
+    def complete(messages):            # deliberately no **kwargs
+        calls.append(messages)
+        return '{"headline": "h", "entries": [{"summary": "s"}]}'
+
+    result = complete_json(complete, [{"role": "user", "content": "x"}],
+                           jsonschema_validator(SCHEMA))
+
+    assert result.attempts == 1
+    assert len(calls) == 1
+
+
+def test_the_schema_reaches_the_provider_on_the_first_attempt():
+    """The whole value of the rung is that the provider gets it. A schema that
+    is accepted and quietly not forwarded is the failure this pins."""
+    seen = []
+
+    def complete(messages, *, schema=None):
+        seen.append(schema)
+        return '{"headline": "h", "entries": [{"summary": "s"}]}'
+
+    complete_json(complete, [{"role": "user", "content": "x"}],
+                  jsonschema_validator(SCHEMA), schema=SCHEMA)
+
+    assert seen == [SCHEMA]
+
+
+def test_the_retry_stays_constrained():
+    """Measured: a constrained reply can still fail validation, because the
+    decoder does not enforce every keyword (uniqueItems, for one). The retry
+    that follows must not silently drop to unconstrained decoding -- that would
+    make attempt two strictly weaker than attempt one."""
+    seen = []
+    replies = iter([
+        '{"headline": "h", "entries": []}',     # minItems 1 -> rejected
+        '{"headline": "h", "entries": [{"summary": "s"}]}',
+    ])
+
+    def complete(messages, *, schema=None):
+        seen.append(schema)
+        return next(replies)
+
+    result = complete_json(complete, [{"role": "user", "content": "x"}],
+                           jsonschema_validator(SCHEMA), schema=SCHEMA,
+                           retries=1)
+
+    assert result.attempts == 2
+    assert seen == [SCHEMA, SCHEMA], "the retry must carry the schema too"
+
+
+def test_the_schema_is_not_injected_into_the_prompt():
+    """Constraining is a transport concern. A module that also edited the
+    messages would silently double-count with a caller that renders the schema
+    into its own system prompt, as this repo's synthesizer does."""
+    messages = [{"role": "user", "content": "x"}]
+    seen = []
+
+    def complete(msgs, *, schema=None):
+        seen.append(copy.deepcopy(msgs))
+        return '{"headline": "h", "entries": [{"summary": "s"}]}'
+
+    complete_json(complete, messages, jsonschema_validator(SCHEMA),
+                  schema=SCHEMA)
+
+    assert seen == [messages]
+    assert messages == [{"role": "user", "content": "x"}]

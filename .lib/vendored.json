@@ -18,11 +18,11 @@
     "dependencies": [],
     "files": {
       "__init__.py": "e6cb3cd6970058cf",
-      "provider.py": "2b7f62e29589ec96"
+      "provider.py": "091c960081a7abcf"
     },
     "adopted": "2026-09-17",
-    "adopted_from": "feat/ollama-options",
-    "adopted_why": "options and keep_alive passthrough, contributed upstream from this repo"
+    "adopted_from": "feat/ollama-json-format",
+    "adopted_why": "options/keep_alive passthrough, and response_format for schema-constrained decoding; both contributed upstream from this repo"
   },
   {
     "slug": "sqlite-versioned-schema",

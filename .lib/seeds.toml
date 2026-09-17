@@ -103,10 +103,11 @@ test = "tests/test_llm_json_contract.py"
 planted = "2026-09-17"
 band = "possible"
 score = 10
-tests = 42
+tests = 46
 boundary = "docs/seeds/llm-json-contract.md"
-when_to_use = "You asked a text-only model (a coding CLI, a local Ollama box) for JSON and need a validated object back rather than a string that usually parses, with the raw replies kept for the week it does not."
+when_to_use = "You asked a model (a coding CLI, a local Ollama box) for JSON and need a validated object back rather than a string that usually parses, with the raw replies kept for the week it does not. Covers both ends of what providers can guarantee: constrained decoding where the provider supports a JSON Schema, extract-validate-retry where it does not, without the caller branching on which it has."
 accepted_lower = "Scorer artifact, measured not assumed: removing the stdlib @dataclass(frozen=True) on ContractResult raises it from possible (10) to strong (16), exactly the -6 decorated-top-level-def penalty. That penalty targets framework coupling (@app.route, @click.command); a frozen value type is the opposite. Keeping the dataclass. The remaining gap is the one justified optional dependency, jsonschema, lazily imported."
+demand = "knowledge_graph (~/GIFNew/isugif/knowledge_graph) hand-rolls this in at least 5 scripts: json.loads, then on JSONDecodeError slice from the first { to the last }. 6 files handle JSONDecodeError. That is a second consumer, which is the graduation bar."
 
 [[seed]]
 slug = "cited-digest-render"

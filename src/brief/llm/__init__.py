@@ -23,6 +23,7 @@ that names the fix. `brief doctor` prints exactly that.
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Mapping
 from typing import Any, Iterator, Protocol, runtime_checkable
 
@@ -51,6 +52,33 @@ class LLMProvider(Protocol):
     def complete(self, messages: list[dict]) -> str: ...
     def chat_stream(self, messages: list[dict]) -> Iterator[str]: ...
     def embed(self, texts: list[str]) -> list[list[float]] | None: ...
+
+
+CONSTRAINT_KEYWORD = "response_format"
+
+
+def supports_constrained_json(provider: Any) -> bool:
+    """Can this provider restrict its own decoding to a JSON Schema?
+
+    Answered by asking the callable, not by naming a class, so a provider that
+    gains the capability later is used without editing this module. Ollama has
+    it; `claude -p` and `codex exec` are prompt-in text-out and do not.
+
+    A declared `response_format` parameter counts; `**kwargs` does not. A
+    generic wrapper accepts every keyword and silently discards the ones it
+    does not understand, which would advertise a guarantee nothing enforces --
+    and an unconstrained call that believes it is constrained is exactly the
+    failure this whole path exists to remove.
+    """
+    try:
+        parameters = inspect.signature(provider.complete).parameters
+    except (AttributeError, TypeError, ValueError):
+        return False
+    parameter = parameters.get(CONSTRAINT_KEYWORD)
+    return parameter is not None and parameter.kind in (
+        inspect.Parameter.KEYWORD_ONLY,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    )
 
 
 def _sampler_options(cfg: Mapping[str, Any]) -> dict[str, Any] | None:

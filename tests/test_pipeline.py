@@ -480,9 +480,16 @@ def test_a_default_provenance_still_promises_only_what_the_code_delivers(conn):
     assert "links to its source" in page.markdown, "the citation rule is the promise"
 
 
-def test_a_section_the_model_invented_is_dropped_and_counted(conn):
-    """The profile decides what sections a brief has, not the model."""
-    reply = json.dumps(
+def test_an_invented_section_is_rejected_and_the_retry_recovers_its_content(conn):
+    """The profile decides what sections a brief has, not the model.
+
+    The bucket names come from the profile, so they are pinned as an `enum` in
+    the schema and an invented one now fails validation instead of reaching the
+    renderer. That is deliberately the stronger of the two options: the retry
+    carries the specific error and the model re-files the entry under a real
+    section, where dropping it downstream would have lost the content outright.
+    """
+    invented = json.dumps(
         {
             "buckets": [
                 {"name": "Funding", "entries": [{"text": "A real one.", "item_ids": [1]}]},
@@ -490,7 +497,49 @@ def test_a_section_the_model_invented_is_dropped_and_counted(conn):
             ]
         }
     )
-    _, _, page = run(conn, make_profile(), StubProvider(reply))
+    refiled = json.dumps(
+        {
+            "buckets": [
+                {"name": "Funding", "entries": [{"text": "A real one.", "item_ids": [1]}]},
+                {"name": "People", "entries": [{"text": "Made up.", "item_ids": [1]}]},
+            ]
+        }
+    )
+    provider = StubProvider(invented, refiled)
+    _, result, page = run(conn, make_profile(), provider)
+
+    assert len(provider.calls) == 2, "the invented name must cost a retry"
+    assert "Rumours" not in page.markdown
+    assert "A real one" in page.markdown
+    assert "Made up" in page.markdown, "the content is recovered, not discarded"
+    retry_turn = provider.calls[1][-1]["content"]
+    assert "Rumours" in retry_turn, "the model is told exactly what was wrong"
+
+
+def test_the_renderer_still_drops_a_section_the_profile_never_declared(conn):
+    """Defence in depth, and the path a provider that cannot be constrained
+    relies on: if a bad name ever survives validation, the page must not carry
+    a section the profile never asked for."""
+    result = {
+        "buckets": [
+            {"name": "Funding", "entries": [{"text": "A real one.", "item_ids": [1]}]},
+            {"name": "Rumours", "entries": [{"text": "Made up.", "item_ids": [1]}]},
+        ]
+    }
+    profile = make_profile()
+    rows = db.items_fetched_since(
+        conn, [r.name for r in profile.sources], since=NOW - timedelta(days=7)
+    )
+    selection = select_mod.select(rows, profile, context_window_tokens=100_000)
+    page = render_mod.render(
+        result,
+        profile,
+        selection,
+        week_start=WEEK,
+        provider_name="stub",
+        item_urls=db.urls_for_ids(conn, [i for i, _ in selection.rendered]),
+    )
+
     assert "Rumours" not in page.markdown
     assert "Made up" not in page.markdown
     assert "A real one" in page.markdown
@@ -685,3 +734,112 @@ def test_no_placeholder_survives_into_the_prompt(conn):
     prompt = synth_mod.render_system_prompt(make_profile(), schema=synth_mod.load_schema())
     body = prompt.split("Return an object matching this schema")[0]
     assert not re.search(r"\{[a-z_]+\}", body), f"unsubstituted placeholder in {body[-200:]}"
+
+
+# --- constrained decoding, end to end ----------------------------------------
+
+
+class ConstrainableStubProvider(StubProvider):
+    """A provider that can restrict its own decoding, as Ollama can.
+
+    It declares `response_format` for real rather than swallowing `**kwargs`,
+    because that declaration is exactly what `supports_constrained_json`
+    inspects, and a stub that cheated would prove nothing.
+    """
+
+    name = "constrainable-stub"
+
+    def __init__(self, *replies: str, window: int = 100_000):
+        super().__init__(*replies, window=window)
+        self.formats: list[dict | None] = []
+
+    def complete(self, messages: list[dict], *, response_format: dict | None = None) -> str:
+        self.formats.append(response_format)
+        return super().complete(messages)
+
+
+def test_the_schema_reaches_a_provider_that_can_constrain_its_decoding(conn):
+    """Through synthesize(), not just the capability helper.
+
+    Measured against a real 27B model: with the schema as Ollama's `format`,
+    `additionalProperties`, `required`, `enum` and `minItems` are enforced by
+    the decoder, so a malformed reply stops being possible. None of that
+    happens unless synthesize actually forwards it, which is what this pins.
+    """
+    provider = ConstrainableStubProvider(good_reply())
+    run(conn, make_profile(), provider)
+
+    assert provider.formats and provider.formats[0] is not None, (
+        "a provider that can be constrained must be"
+    )
+    sent = provider.formats[0]
+    assert sent["properties"]["buckets"]["items"]["properties"]["name"]["enum"] == [
+        "Funding",
+        "People",
+    ], "and the constraint must carry this profile's own section names"
+
+
+def test_a_provider_that_cannot_be_constrained_is_called_exactly_as_before(conn):
+    """The CLI providers are prompt-in text-out. Passing them a keyword they
+    never declared would be a TypeError on the weekly run, not in this suite."""
+    provider = StubProvider(good_reply())
+    run(conn, make_profile(), provider)
+
+    assert provider.calls, "it still ran"
+    assert not hasattr(provider, "formats")
+
+
+def test_the_constraint_is_rebuilt_per_profile_not_shared(conn):
+    """Bucket names are profile data. A schema cached across profiles would
+    constrain one brief to another's sections — silently, and only on the
+    second profile."""
+    first = ConstrainableStubProvider(good_reply())
+    run(conn, make_profile(), first)
+
+    other = make_profile(buckets=(Bucket("Policy", "rules"),))
+    second = ConstrainableStubProvider(
+        json.dumps({"buckets": [
+            {"name": "Policy", "entries": [{"text": "A rule.", "item_ids": [1]}]}
+        ]})
+    )
+    run(conn, other, second)
+
+    def names(provider):
+        schema = provider.formats[0]
+        return schema["properties"]["buckets"]["items"]["properties"]["name"]["enum"]
+
+    assert names(first) == ["Funding", "People"]
+    assert names(second) == ["Policy"]
+
+
+def test_the_enum_is_in_the_prompt_the_model_actually_sees(conn):
+    """The schema is rendered into the system prompt as well as constrained
+    with, so a provider that cannot be constrained still gets the sharper
+    instruction. Two places, one object."""
+    provider = ConstrainableStubProvider(good_reply())
+    run(conn, make_profile(), provider)
+
+    system_turn = provider.calls[0][0]["content"]
+    assert '"enum"' in system_turn
+    assert '"Funding"' in system_turn and '"People"' in system_turn
+
+
+def test_a_self_merge_is_rejected(conn):
+    """Measured: the decoder enforces minItems but NOT uniqueItems, and a real
+    model emitted `merged: [[1, 1]]` three times running. "This item is the
+    same story as itself" is not a merge, so the validator has to catch what
+    the grammar cannot express."""
+    self_merged = json.dumps(
+        {
+            "buckets": [
+                {"name": "Funding", "entries": [{"text": "A real one.", "item_ids": [1]}]}
+            ],
+            "merged": [[1, 1]],
+        }
+    )
+    provider = StubProvider(self_merged)
+
+    with pytest.raises(JsonContractError) as caught:
+        run(conn, make_profile(), provider)
+
+    assert "unique" in str(caught.value).lower()

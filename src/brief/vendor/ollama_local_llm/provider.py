@@ -250,8 +250,31 @@ class OllamaProvider:
 
     # ------------------------------------------------------- inference ---
 
-    def chat_stream(self, messages: list[dict]) -> Iterator[str]:
+    def chat_stream(
+        self,
+        messages: list[dict],
+        *,
+        response_format: dict | str | None = None,
+    ) -> Iterator[str]:
         """Yield response tokens as they arrive.
+
+        ``response_format`` is Ollama's ``format`` field: the string ``"json"``
+        for "valid JSON, any shape", or a JSON Schema object for constrained
+        decoding, where the sampler is restricted to tokens that keep the reply
+        conformant. A schema makes malformed JSON and undeclared keys
+        impossible rather than unlikely, so the caller stops paying for a retry
+        loop it cannot win.
+
+        It does not make the content correct. Measured against a 27B model told
+        to violate its schema: constrained, it obeyed the shape and padded a
+        section with junk to fill it. Constraining relocates the error from
+        "unparseable" to "well-formed and wrong", so keep validating the object
+        you get back.
+
+        Not every server or model supports a schema here; one that does not
+        answers with an HTTP error rather than ignoring the field, which is the
+        behaviour you want — a silent downgrade to unconstrained decoding would
+        look identical to success.
 
         Raises:
             RuntimeError: if no chat model is available.
@@ -268,6 +291,8 @@ class OllamaProvider:
             # if you would rather keep it and strip it client-side
             "think": False,
         }
+        if response_format is not None:
+            payload["format"] = response_format
         self._apply_call_options(payload)
         try:
             response = self._post("/api/chat", payload)
@@ -298,9 +323,20 @@ class OllamaProvider:
         if self.keep_alive is not None:
             payload["keep_alive"] = self.keep_alive
 
-    def complete(self, messages: list[dict]) -> str:
-        """Convenience for callers that do not want an iterator."""
-        return "".join(self.chat_stream(messages))
+    def complete(
+        self,
+        messages: list[dict],
+        *,
+        response_format: dict | str | None = None,
+    ) -> str:
+        """Convenience for callers that do not want an iterator.
+
+        ``response_format`` is forwarded to ``chat_stream``; see it for what a
+        JSON Schema here does and does not buy you.
+        """
+        return "".join(
+            self.chat_stream(messages, response_format=response_format)
+        )
 
     def embed(self, texts: list[str]) -> list[list[float]] | None:
         """Embed ``texts``, or None if embeddings are unavailable.

@@ -19,6 +19,7 @@ entry, which no amount of re-reading the prose would give you.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from dataclasses import dataclass
@@ -30,6 +31,7 @@ from brief.lib.llm_json_contract import (
     complete_json,
     jsonschema_validator,
 )
+from brief.llm import supports_constrained_json
 from brief.models import Profile
 from brief.select import ITEM_RENDER_VERSION, Selection
 
@@ -108,6 +110,26 @@ def prompt_hash(system_prompt: str, *, item_render_version: int = ITEM_RENDER_VE
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def schema_for(profile: Profile, base: dict[str, Any] | None = None) -> dict[str, Any]:
+    """`schema.json`, narrowed to the sections this profile actually declared.
+
+    The bucket names are configuration: they are in the profile, they are in
+    the prompt, and the model's only job is to copy them back. So they are
+    pinned as an `enum` rather than asked for in a sentence -- an invented
+    section stops being a mistake to catch and becomes one the model cannot
+    express, on a provider that constrains its decoding.
+
+    It earns its keep on the providers that cannot be constrained too, because
+    the same object is rendered into the prompt and used as the validator, so
+    a CLI provider gets a sharper instruction and a sharper check for free.
+    """
+    schema = copy.deepcopy(base if base is not None else load_schema())
+    names = [bucket.name for bucket in profile.buckets]
+    if names:
+        schema["properties"]["buckets"]["items"]["properties"]["name"]["enum"] = names
+    return schema
+
+
 def synthesize(
     profile: Profile,
     selection: Selection,
@@ -123,7 +145,7 @@ def synthesize(
     provider, because a silent provider swap changes the character of the
     brief without telling its reader.
     """
-    schema = schema or load_schema()
+    schema = schema_for(profile, schema)
     system_prompt = render_system_prompt(
         profile, schema=schema, template_path=template_path
     )
@@ -133,10 +155,26 @@ def synthesize(
         {"role": "user", "content": selection.numbered_list()},
     ]
 
+    # Rung 1 of the contract: on a provider that can constrain its decoding,
+    # hand it the schema so a malformed or undeclared reply is unrepresentable
+    # rather than merely discouraged. The validator below still runs -- the
+    # decoder does not enforce every keyword (`uniqueItems`, measured), and a
+    # grammar constrains shape, never truth.
+    constrain: dict[str, Any] | None = (
+        schema if supports_constrained_json(provider) else None
+    )
+
+    def constrained(messages: list[dict], *, schema: dict) -> str:
+        """Adapt this provider's spelling; the seed knows only `schema`."""
+        return provider.complete(messages, response_format=schema)
+
+    complete = constrained if constrain is not None else provider.complete
+
     outcome = complete_json(
-        provider.complete,
+        complete,
         messages,
         jsonschema_validator(schema),
+        schema=constrain,
         retries=1,
         retry_template="That reply was rejected: {error}\n{rule}".replace(
             "{rule}", RETRY_RULE
@@ -185,6 +223,7 @@ __all__ = [
     "JsonContractError",
     "Synthesis",
     "load_schema",
+    "schema_for",
     "prompt_hash",
     "render_system_prompt",
     "synthesize",

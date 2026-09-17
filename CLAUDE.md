@@ -43,11 +43,23 @@ return `list[Item]`. They **never write to the database** and hold no HTTP or pa
 
 ## 6. The model is never trusted
 
-Synthesis asks for JSON and **code enforces the contract**: extract, validate against
-`prompts/schema.json`, retry once with the error. The renderer drops any entry whose `item_ids`
-is empty or names an id that was not in the input, and reports the count. A brief the VPR office
-forwards cannot contain an uncited claim, so that check is code, not a prompt request.
-`src/brief/synthesize.py` imports the `LLMProvider` Protocol and **never a vendor SDK**.
+**Code enforces the contract**, on four rungs, strongest first: constrain the decoding to
+`prompts/schema.json` where the provider supports it, extract the object, validate, retry once
+with the error, then fail loudly. Anything the profile already decides is pinned in the schema
+rather than requested in a sentence — the bucket names are an `enum` built from the profile, so
+an invented section is unrepresentable rather than merely discouraged.
+
+**A constrained reply still gets validated.** Measured: the decoder enforces `required`,
+`additionalProperties`, `enum` and `minItems`, but not `uniqueItems` — and a grammar constrains
+shape, never truth. Told to violate its schema the model obeyed the grammar and padded a section
+with junk. Constraint moves the failure from "unparseable" to "well-formed and wrong"; only the
+validator catches the second kind.
+
+The renderer drops any entry whose `item_ids` is empty or names an id that was not in the input,
+and reports the count. A brief the VPR office forwards cannot contain an uncited claim, so that
+check is code, not a prompt request. `src/brief/synthesize.py` imports the `LLMProvider` Protocol
+and **never a vendor SDK**; it asks `supports_constrained_json(provider)` rather than naming a
+provider class, so a provider that gains the capability is used without an edit.
 
 ## 7. Tests are stubs, never mocks
 

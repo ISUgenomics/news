@@ -38,6 +38,7 @@
       "items": {
         "type": "array",
         "minItems": 2,
+        "uniqueItems": true,
         "items": { "type": "integer", "minimum": 1 }
       }
     }

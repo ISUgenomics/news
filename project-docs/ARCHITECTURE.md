@@ -38,8 +38,9 @@ box exists as a module, every number was measured.
 │                                            │   synthesize    │               │
 │                                            │                 │               │
 │                                            │ prompt from the │               │
-│                                            │ profile; ask for│               │
-│                                            │ JSON; validate; │               │
+│                                            │ profile; CONSTRAIN               │
+│                                            │ the decoding if │               │
+│                                            │ it can; validate│               │
 │                                            │ retry ONCE      │               │
 │                                            └────────┬────────┘               │
 │                            LLMProvider Protocol     │                        │
@@ -136,16 +137,31 @@ the rules differ per zone. `CLAUDE.md` states them as non-negotiables.
 
 ## The rule that shapes everything
 
-The model is never trusted. It is asked for JSON; **code** enforces the contract.
+The model is never trusted. It is asked for JSON; **code** enforces the contract, on
+four rungs, and the caller takes the highest one its provider supports.
 
 ```
+   the profile's bucket names ──> enum in the schema ──┐
+                                                        │  same object, three jobs:
+                                                        ├─ rendered into the prompt
+                                                        ├─ the decoder's grammar
+                                                        └─ the validator
+                                                        │
+   RUNG 1  CONSTRAIN  ollama only ◄─────────────────────┘
+         │  format = schema. Enforced BY THE DECODER, measured:
+         │  required · additionalProperties · enum · minItems
+         │  NOT uniqueItems — which is why rung 3 still runs
+         ▼
    model returns text
          │
          ▼
-   extract first JSON object ──── fails ──> retry ONCE with the error
-         │                                        │
-         ▼                                        └── fails again ──> STUB PAGE
-   validate against prompts/schema.json                               (never silence)
+   RUNG 2  extract first JSON object ─── fails ──> retry ONCE with the error
+         │                                              │
+         ▼                                              └─ fails again ──> STUB PAGE
+   RUNG 3  validate against prompts/schema.json                            (never silence)
+         │           a grammar constrains SHAPE, never TRUTH:
+         │           told to violate its schema, the model obeyed the
+         │           grammar and padded a section with junk
          │
          ▼
    translate prompt positions → database ids
