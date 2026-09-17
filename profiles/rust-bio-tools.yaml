@@ -45,9 +45,11 @@ relevance:
     - port of
     - drop-in replacement
     - faster than
-  # Left empty on purpose. The Watch list is how this earns its entries, and
-  # a topic profile's first few runs are mostly a conversation with it.
-  none_of: []
+  # Earned by the first run, which is how this list is meant to grow.
+  # BenoQs-Sequencerv2, a MUSIC sequencer, reached "Rewrites and ports"
+  # because "sequencer" reads as genomics to a keyword filter.
+  none_of:
+    - sequencer
   max_items: 120
 
 buckets:
