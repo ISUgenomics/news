@@ -46,5 +46,5 @@ delivery:
   to: ["isugif2011@gmail.com"]
   subject: "{title} — week of {week_start} ({n} items)"
 
-llm:
-  provider: claude-cli
+# Inherits the global `llm` block from config.yaml. Override here to send this
+# one brief through a different provider, e.g.  llm: {provider: claude-cli}

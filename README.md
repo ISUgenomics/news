@@ -18,9 +18,15 @@ uv run brief synthesize --profile isu-ai
 uv run brief deliver    --profile isu-ai
 ```
 
-The LLM is reached through a pluggable provider: a coding CLI you are already signed in to
-(`claude`, `codex`), a local Ollama server, or a metered API. Switching is one line in
-`config.yaml` or in a profile.
+The LLM is reached through a pluggable provider: a local Ollama model (the default), a
+coding CLI you are already signed in to (`claude`, `codex`), or a metered API. Switching
+is one line in `config.yaml` or in a profile.
+
+Local is the default because it asks nothing of anyone — no credential, no token expiry,
+and no question about whether an unattended weekly job is a permitted use of a
+coding-CLI subscription. Name the model explicitly; auto-selection picks the largest
+model at or under 15B, which is a rule for interactive apps that need fast first tokens,
+not for a weekly batch job where two minutes is free and quality is everything.
 
 - `spec.md` — the product and architecture spec
 - `BUILD-SPEC.md` — how it was built, and the decisions behind it

@@ -18,10 +18,22 @@ delivery:
     University from public sources; every statement links to its source.
 
 llm:
-  provider: claude-cli          # claude-cli | codex-cli | local | anthropic-api
-  # model: claude-opus-5        # anthropic-api only; the CLIs use their own default
-  # base_url: http://localhost:11434   # local (Ollama) only
-  timeout_s: 600
+  # local | claude-cli | codex-cli | anthropic-api
+  #
+  # `local` is the default because it asks nothing of anyone: no credential, no
+  # token expiry, and no question about whether an unattended weekly job is a
+  # permitted use of a coding-CLI subscription. Switching is one line here, or
+  # per profile.
+  provider: local
+
+  # Name the model. Do NOT rely on auto-selection: it picks the largest model at
+  # or under 15B, a rule tuned for interactive apps that need first tokens in
+  # seconds. This is a weekly batch job where two minutes is free and quality is
+  # everything, so the 3B model that rule chooses is the wrong trade.
+  model: qwen3.8:27b-mlx
+
+  # base_url: http://localhost:11434   # local only; a GPU box elsewhere
+  timeout_s: 1800                      # a 27B model takes minutes, not seconds
 
 select:
   chars_per_token: 4            # budgeting heuristic; no provider exposes a tokenizer
