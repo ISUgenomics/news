@@ -5,7 +5,7 @@
 # news — codeLibrary status
 
 **Repo:** `/Users/andrewseverin/AI/news`  
-**HEAD:** 6c9ca6e on `feat/scaffold`  
+**HEAD:** cd308bd on `feat/scaffold`  
 **Generated:** 2026-09-17 — refresh with `/lib-status`
 
 ## Extracted into codeLibrary
