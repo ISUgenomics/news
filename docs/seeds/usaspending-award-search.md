@@ -44,6 +44,40 @@ def normalize_award(record: dict, *, award_type_group: str, site_url: str = 'htt
 def search_awards(*, start_date: str, end_date: str, recipient: str | None = None, keywords: Sequence[str] | None = None, award_types: Sequence[str] = ('grants', 'contracts'), base_url: str = DEFAULT_BASE_URL, timeout_s: float = 30.0, max_pages: int = 10) -> list[dict]
 ```
 
+## Boundary revision, 2026-09-17: which date an award is dated by
+
+`published_at` was the award's **Start Date** (period of performance). It is now the
+**Base Obligation Date** — when the money was actually committed — with Start Date as the
+fallback when the API omits it. `start_date` and `obligated_at` are both returned alongside.
+
+The original mapping looked reasonable and was wrong for any caller asking "what happened in
+this window". Measured on a real three-year fetch of one institution: awards appeared dated
+as far forward as 2027-01-01 and as far back as 1987, because a grant's project period can
+begin long after the award is made and can have begun decades ago. A backfill grouping by
+week put those awards in weeks that had not happened yet.
+
+`Base Obligation Date` had to be added to `DEFAULT_FIELDS` as well as read, because this API
+returns only the fields you request — a mapping that reads an unrequested field silently
+returns None, which the fallback would then hide. The existing fixtures do not carry the
+field, so they exercise the fallback and every original test still passes unchanged; the new
+behaviour needed its own tests, which is the trap this note exists to flag.
+
+
+### Known limitation of the new mapping
+
+The search filters on `action_date` — an award *action* in the window — while
+`Base Obligation Date` is when the award was FIRST obligated. A recent modification to a
+long-running award therefore returns a much older date. Measured on the same fetch: 494 of
+1,041 awards (47%) carried an obligation date predating the three-year window, the oldest
+being 2006.
+
+That is defensible — the award really was obligated then — and it is better than the future
+dates the Start Date mapping produced. But a caller grouping by week should know that a
+USAspending item dates from when its award began, not from the modification that surfaced it.
+`Last Modified Date` is available and is closer to "something happened this week", but it is
+a data-warehouse timestamp rather than an award event, so it is not used. A caller who
+genuinely needs "actions this week" should filter the raw record, which is preserved.
+
 ## Test harness
 stub_http
 

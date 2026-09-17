@@ -32,7 +32,15 @@ Notes confirmed against the live API (2026-09-17):
   old awards; ``new_awards_only`` matches the base transaction and is what a
   "new this week" reader usually wants. ``last_modified_date`` and ``date_signed``
   are the other two values the API accepts.
-* ``published_at`` is the award's **Start Date** (period of performance), which is
+* ``published_at`` is the award's **Base Obligation Date** — when the money was
+  actually committed. It is deliberately NOT the Start Date (period of
+  performance), which was the original mapping and is wrong for any caller
+  asking "what happened in this window": a grant awarded in 2026 whose project
+  begins in 2027 would land a year in the future, and one whose period began in
+  1987 would land forty years in the past. Both were observed in a real fetch.
+  ``start_date`` is still returned alongside for a caller that wants it.
+
+  Historical note, because the old mapping looked reasonable:
   *not* the field the time filter is applied to. A caller that needs the filtered
   date must read it out of ``raw``.
 * Mixing codes from two groups is rejected with HTTP 422 and the message
@@ -97,6 +105,7 @@ DEFAULT_FIELDS: tuple[str, ...] = (
     "Award ID",
     "Recipient Name",
     "Start Date",
+    "Base Obligation Date",
     "End Date",
     "Award Amount",
     "Awarding Agency",
@@ -192,7 +201,7 @@ def normalize_award(
     Pure, total, and forgiving: a record missing a field yields ``None`` for it
     rather than raising, because the API's field set varies by award type group.
     ``amount`` is the JSON value verbatim, as are ``recipient`` and the two
-    agency names. ``published_at`` is the award's **Start Date**, which is not
+    agency names. ``published_at`` is the award's **Base Obligation Date**, not
     necessarily the date the search filtered on — read ``raw`` for that.
     ``title`` defaults to the description, falling back to the award id; pass
     ``title_of`` to compose something richer, which is the caller's policy.
@@ -215,7 +224,11 @@ def normalize_award(
         "url": _award_url(site_url, internal_id),
         "title": title,
         "body": description,
-        "published_at": record.get("Start Date"),
+        # When the award was OBLIGATED, not when its project period begins.
+        # Falls back to Start Date only when the API omits it.
+        "published_at": record.get("Base Obligation Date") or record.get("Start Date"),
+        "start_date": record.get("Start Date"),
+        "obligated_at": record.get("Base Obligation Date"),
         "amount": record.get("Award Amount"),
         "recipient": record.get("Recipient Name"),
         "awarding_agency": record.get("Awarding Agency"),

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+import brief.lib.usaspending_award_search as ua
 from brief.lib.usaspending_award_search import (
     AWARD_TYPE_GROUPS,
     DEFAULT_FIELDS,
@@ -681,3 +682,54 @@ def test_search_awards_does_not_import_anything_from_brief():
     ).read_text(encoding="utf-8")
     assert "from brief" not in source
     assert "import brief" not in source
+
+
+# --- which date an award is dated by -----------------------------------------
+#
+# The original mapping used Start Date, the period of performance. A real fetch
+# showed why that is wrong for any caller asking "what happened in this window":
+# grants awarded in 2026 whose project begins in 2027 landed a year in the
+# future, and awards whose period began in 1987 landed forty years in the past.
+
+
+def test_published_at_is_the_obligation_date_not_the_period_start():
+    got = ua.normalize_award(
+        {
+            "Award ID": "A1",
+            "Recipient Name": "Somewhere",
+            "Base Obligation Date": "2026-05-05",
+            "Start Date": "2027-01-01",
+            "End Date": "2029-12-31",
+        },
+        award_type_group="grants",
+    )
+    assert got["published_at"] == "2026-05-05", "when the money was committed"
+    assert got["start_date"] == "2027-01-01", "the period start is kept, just not as the date"
+    assert got["obligated_at"] == "2026-05-05"
+
+
+def test_the_period_start_is_the_fallback_when_the_api_omits_the_obligation_date():
+    got = ua.normalize_award(
+        {"Award ID": "A2", "Start Date": "2024-03-01"}, award_type_group="grants"
+    )
+    assert got["published_at"] == "2024-03-01"
+    assert got["obligated_at"] is None
+
+
+def test_an_award_with_neither_date_has_none_rather_than_a_guess():
+    got = ua.normalize_award({"Award ID": "A3"}, award_type_group="grants")
+    assert got["published_at"] is None
+
+
+def test_the_obligation_date_is_actually_requested_from_the_api():
+    """A mapping that reads a field nobody asked for silently returns None."""
+    assert "Base Obligation Date" in ua.DEFAULT_FIELDS
+
+
+def test_a_future_period_start_no_longer_dates_an_award_in_the_future():
+    """The observed symptom: awards landing in 2027."""
+    got = ua.normalize_award(
+        {"Award ID": "A4", "Base Obligation Date": "2026-09-01", "Start Date": "2027-01-01"},
+        award_type_group="grants",
+    )
+    assert got["published_at"] < "2027-01-01"

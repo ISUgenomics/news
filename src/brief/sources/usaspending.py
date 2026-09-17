@@ -13,6 +13,10 @@ from typing import Any
 from brief.lib.usaspending_award_search import search_awards
 from brief.models import Item
 
+#: time_period is a real filter, so history is reachable — and this is the only
+#: source covering USDA/NIFA, which is where a deep fetch earns its keep.
+SUPPORTS_HISTORY = True
+
 
 def fetch(
     source: str,

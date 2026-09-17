@@ -42,6 +42,7 @@ from brief.profile import (
     load_yaml,
 )
 from brief.sources import fetch as fetch_source
+from brief.sources import supports_history
 
 app = typer.Typer(add_completion=False, help="Weekly topic briefs from public sources.")
 
@@ -164,6 +165,9 @@ def monday_of(moment: datetime) -> str:
 def ingest(
     root: Path = typer.Option(ROOT, help="Project root holding config.yaml"),
     source: str | None = typer.Option(None, help="Fetch only this source"),
+    since: str | None = typer.Option(
+        None, help="Reach back to this ISO date instead of the usual window"
+    ),
 ) -> None:
     """Fetch every source any enabled profile references, and store what is new.
 
@@ -180,7 +184,24 @@ def ingest(
     plan = [
         (n, p, k) for n, p, k in fetch_plan(profiles) if source is None or n == source
     ]
-    since = now - timedelta(days=int(ingest_cfg.get("lookback_days", 30)))
+    if since:
+        try:
+            since_dt = datetime.fromisoformat(since).replace(tzinfo=timezone.utc)
+        except ValueError as exc:
+            raise typer.BadParameter(f"--since must be an ISO date: {exc}")
+        cannot = sorted(
+            {n for n, _p, _k in plan if not supports_history(str(sources[n].get("kind")))}
+        )
+        if cannot:
+            log(
+                "ingest.history_unavailable",
+                requested_since=since_dt.date().isoformat(),
+                sources=cannot,
+                note="these serve only their most recent entries and have no date filter",
+            )
+    else:
+        since_dt = now - timedelta(days=int(ingest_cfg.get("lookback_days", 30)))
+    since = since_dt
     body_cap = int(ingest_cfg.get("body_cap_bytes", db.DEFAULT_BODY_CAP))
 
     total_new = 0

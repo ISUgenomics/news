@@ -15,6 +15,10 @@ from typing import Any
 from brief.lib.nsf_award_search import search_nsf_awards
 from brief.models import Item
 
+#: dateStart/dateEnd filter on the award's effective date, so this reaches back
+#: as far as the range asks. Measured: 190 awards over three years.
+SUPPORTS_HISTORY = True
+
 
 def fetch(
     source: str,

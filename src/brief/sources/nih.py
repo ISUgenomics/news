@@ -9,6 +9,9 @@ from typing import Any
 from brief.lib.nih_reporter_search import fetch_projects
 from brief.models import Item
 
+#: RePORTER takes a date window in its criteria, so history is reachable.
+SUPPORTS_HISTORY = True
+
 
 def fetch(
     source: str,

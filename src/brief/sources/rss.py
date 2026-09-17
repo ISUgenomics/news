@@ -34,6 +34,11 @@ from brief.models import Item
 
 THIN_SUMMARY_CHARS = 200
 
+#: A feed serves only its most recent entries — typically 10 to 20 — and has no
+#: date parameter. Asking for an older window changes nothing, so a deep ingest
+#: must say so rather than appear to have fetched history it cannot reach.
+SUPPORTS_HISTORY = False
+
 
 def fetch(
     source: str,

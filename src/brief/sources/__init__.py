@@ -30,6 +30,21 @@ ADAPTERS: dict[str, Fetch] = {
 }
 
 
+def supports_history(kind: str) -> bool:
+    """Can this adapter reach further back than its default window?
+
+    The award and literature APIs take a date range and genuinely can. A feed
+    cannot: it serves its most recent entries and has no date parameter, so a
+    deep ingest that silently included feeds would look like it had fetched
+    history it never reached.
+    """
+    module = {
+        "rss": rss, "nsf": nsf, "nih": nih,
+        "usaspending": usaspending, "pubmed": pubmed,
+    }.get(kind)
+    return bool(getattr(module, "SUPPORTS_HISTORY", False))
+
+
 class UnknownSourceKind(ValueError):
     """`sources.yaml` names an adapter that does not exist."""
 
@@ -65,4 +80,4 @@ def fetch(
     return adapter(source_name, merged, since=since, now=now), {}
 
 
-__all__ = ["ADAPTERS", "Item", "UnknownSourceKind", "fetch"]
+__all__ = ["ADAPTERS", "Item", "UnknownSourceKind", "fetch", "supports_history"]

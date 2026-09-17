@@ -18,6 +18,9 @@ from typing import Any
 from brief.lib.pubmed_search import citation_line, search_pubmed
 from brief.models import Item
 
+#: E-utilities takes mindate/maxdate, so history is reachable.
+SUPPORTS_HISTORY = True
+
 
 def fetch(
     source: str,
