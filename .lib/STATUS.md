@@ -5,7 +5,7 @@
 # news — codeLibrary status
 
 **Repo:** `/Users/andrewseverin/AI/news`  
-**HEAD:** 5782ff4 on `feat/scaffold`  
+**HEAD:** 4cf811b on `feat/scaffold`  
 **Generated:** 2026-09-17 — refresh with `/lib-status`
 
 ## Extracted into codeLibrary
@@ -35,31 +35,48 @@ Graduate one when a second project wants it: `/lib-extract`
 
 ## Structure
 
-50 Python modules scanned.
+51 Python modules scanned.
 
 **Packages:** `brief`, `tests`
 
 **Entangled** — would rank `strong` if these imports were severed:
 
-- `src/brief/sources/nih.py` — 13 → 18, sever 2 import(s)
-- `src/brief/sources/nsf.py` — 13 → 18, sever 2 import(s)
+- `src/brief/sources/nih.py` — 10 → 18, sever 3 import(s)
+- `src/brief/sources/nsf.py` — 10 → 18, sever 3 import(s)
 - `src/brief/sources/pubmed.py` — 13 → 18, sever 2 import(s)
-- `src/brief/sources/usaspending.py` — 13 → 18, sever 2 import(s)
+- `src/brief/sources/usaspending.py` — 10 → 18, sever 3 import(s)
 - `src/brief/vendor/secret_scanner/cli.py` — 10 → 18, sever 3 import(s)
 - …and 3 more
 
 Untangle: `/lib-fix`
 
-## Worth extracting next (28)
+## Worth extracting next (29)
 
 - `src/brief/lib/config_env_interpolate.py` — strong (22)
 - `src/brief/lib/keyword_relevance.py` — strong (22)
 - `src/brief/lib/macos_keychain_read.py` — strong (22)
 - `src/brief/lib/nih_reporter_search.py` — strong (22)
 - `src/brief/lib/nsf_award_search.py` — strong (22)
-- …and 23 more
+- …and 24 more
 
 Full ranking: `/lib-harvest`. The scan has never read a line of the code it ranks — expect some of it to be wrong.
+
+## Practices that apply here
+
+Learned in other repos, matched to this one's shape. Full set and evidence: `codeLibrary/PRACTICES.md`.
+
+- **Prove the check can fail** — After writing or changing a check, plant the violation it exists to catch and watch it go red, then revert. When you change an output format, update its verifier in the same commit.
+  *Why:* A check that cannot fail is worse than no check: it reports success, so nobody looks again. A verifier that no longer matches the format it reads manufactures false failures instead. *(seen in: knowledge_graph, news)*
+- **Validate the response shape you actually got** — Type-check the fields you read from an external API rather than assuming a structure, and give each integration a standalone test mode you can run against the live service before wiring it in. Save a real response as a fixture.
+  *Why:* Providers change shapes between versions — a list of strings becomes a list of dicts — and the pipeline fails silently, producing empty results rather than an error. *(seen in: knowledge_graph, news)*
+- **Backfill deterministically; re-run the model only for judgement** — When a change affects existing records, write a script that edits them directly. Re-invoke the model only where its judgement is genuinely what changed.
+  *Why:* Re-running the pipeline is slow, costs tokens, and silently rewrites content that was fine — so the diff no longer shows what your change did. *(seen in: knowledge_graph, news)*
+- **Check what is installed before writing a fallback** — Before hand-rolling a parser or extractor, check what the environment already has. If the good path is unavailable, fail cleanly — do not add a crude fallback that returns something.
+  *Why:* A fallback producing garbage is worse than none: the caller cannot tell garbage from data, so it gets used. A clean failure is information, and the caller skips the step. *(seen in: knowledge_graph, news)*
+- **Normalise unicode before you dedup** — A dedup key normalises unicode variants to ASCII — dashes, quotes, whitespace, accents — not just case.
+  *Why:* Two sources give the same record different encodings. An en-dash against a hyphen makes one record two, and the duplicate is invisible because both look right. *(seen in: knowledge_graph, news)*
+
+…and 7 more in `PRACTICES.md`.
 
 ## This project's own docs
 
