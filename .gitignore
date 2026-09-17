@@ -10,3 +10,6 @@ dist/
 build/
 *.egg-info/
 .local_zsh_history
+
+# read by cli.read_env when no dotenv file is present
+env
