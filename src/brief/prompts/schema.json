@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Topic brief synthesis result",
+  "description": "What the model must return. Validated in code before anything is rendered: the citation rule is enforced here and again in render.py, never by asking the model nicely. item_ids are integers on purpose, so a model that quotes an id as a string fails validation upstream instead of being silently dropped by the renderer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["buckets"],
+  "properties": {
+    "buckets": {
+      "type": "array",
+      "description": "Sections in the order the profile listed them. Omit a bucket entirely rather than padding it.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "entries"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Must match one of the bucket names given in the prompt, verbatim."
+          },
+          "entries": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/entry" }
+          }
+        }
+      }
+    },
+    "watch_list": {
+      "type": "array",
+      "description": "On-topic but ambiguous items, one line each, for a human to judge.",
+      "items": { "$ref": "#/$defs/entry" }
+    },
+    "merged": {
+      "type": "array",
+      "description": "Groups of input item numbers judged to be the same story, so the operator can see what was collapsed.",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "items": { "type": "integer", "minimum": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "item_ids"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One claim, stated plainly. Dollar amounts, names, sponsors and deadlines quoted verbatim from the source."
+        },
+        "item_ids": {
+          "type": "array",
+          "minItems": 1,
+          "description": "The input item numbers this claim rests on. An entry with none is dropped before rendering.",
+          "items": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  }
+}
