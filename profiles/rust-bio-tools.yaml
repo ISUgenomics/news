@@ -1,0 +1,68 @@
+name: rust-bio-tools
+title: "Rust in Bioinformatics"
+cadence: weekly
+audience: "a bioinformatics facility tracking where tooling is moving"
+persona: "analyst watching a language ecosystem"
+
+# A TOPIC profile, not an institution one. Nothing here is scoped to a campus:
+# the question is what the field is building, wherever it is being built.
+sources:
+  # Where a tool exists FIRST. `{since}` is replaced with the window start.
+  - github_repos:
+      query: "language:rust topic:bioinformatics pushed:>{since}"
+      sort: updated
+      max_pages: 3
+  # Newly created, which is the sharper signal for a rewrite: a fresh repo
+  # named after an existing C tool is the pattern worth seeing.
+  - github_repos:
+      query: "language:rust genomics OR bioinformatics OR sequencing in:name,description,readme created:>{since}"
+      sort: updated
+      max_pages: 2
+  # Published packages. `new` means created, not merely touched.
+  - crates_io: {query: "bioinformatics", sort: new, max_pages: 2}
+  - crates_io: {query: "genomics", sort: new, max_pages: 2}
+  # Preprints that describe the tools. No affiliation in these feeds, which
+  # is fine here — the whole world is the point.
+  - biorxiv_bioinformatics
+
+relevance:
+  # NOT "rust". The sources already scope to Rust — the GitHub queries say
+  # `language:rust` — so a `rust` keyword is true of every row and admits
+  # everything, which is how a quiz app and a pixel demo reached the top of
+  # the first run. A keyword only earns its place if it can be FALSE.
+  any_of:
+    - bioinformatics
+    - genomics
+    - genome
+    - sequencing
+    - alignment
+    - variant calling
+    - pangenome
+    - fastq
+    - fasta
+    - reimplementation
+    - rewrite
+    - port of
+    - drop-in replacement
+    - faster than
+  # Left empty on purpose. The Watch list is how this earns its entries, and
+  # a topic profile's first few runs are mostly a conversation with it.
+  none_of: []
+  max_items: 120
+
+buckets:
+  - name: New tools
+    ask: "packages and repositories that did not exist before; name, what it does, and the language or tool it replaces if stated"
+  - name: Rewrites and ports
+    ask: "an existing tool reimplemented in Rust; name both the original and the new one"
+  - name: Active development
+    ask: "established projects with notable movement this week"
+  - name: Preprints
+    ask: "papers describing tools; first author and where it appeared"
+
+max_words: 1200
+
+delivery:
+  from: "brief@facility.iastate.edu"
+  to: ["severin@iastate.edu"]
+  subject: "{title} — week of {week_start} ({n} items)"
