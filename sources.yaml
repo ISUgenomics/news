@@ -26,12 +26,31 @@ changedetection:
   kind: rss
   url: "http://changedetection:5000/rss?token=${CD_TOKEN}"
 
+# bioRxiv subject feeds. The path is `biorxiv_xml.php?subject=<slug>`; the
+# `/biorxiv_xml/<slug>` form that used to sit here 404s, which is what the old
+# `verify: true` flag was warning about. Both below were fetched and checked.
+#
+# NONE of these carry an author affiliation, so they cannot be filtered to an
+# institution. For a campus brief use `openalex`, which indexes bioRxiv AND
+# attaches the institution — five bioRxiv preprints already arrive that way.
+# These are for TOPIC profiles, where the whole world is the point.
+biorxiv_all:
+  kind: rss
+  # Every subject. Measured 2026-09-17: 30 entries, ALL from a single day —
+  # bioRxiv publishes far more than that, so this is a few-hours window and a
+  # daily poll silently misses most of it. Prefer a subject feed unless you
+  # are polling many times a day and accept the gaps.
+  url: "http://connect.biorxiv.org/biorxiv_xml.php?subject=all"
+
+biorxiv_bioinformatics:
+  kind: rss
+  # Measured the same day: 30 entries spanning 3 days, so a daily poll covers
+  # it with room to spare. The lower the volume, the further 30 entries reach.
+  url: "http://connect.biorxiv.org/biorxiv_xml.php?subject=bioinformatics"
+
 biorxiv_plant_biology:
   kind: rss
-  # Returns 404 against a live fetch. Left here as a placeholder for a faculty
-  # profile; find the current subject-feed path before any profile uses it.
-  url: "https://connect.biorxiv.org/biorxiv_xml/plant_biology"
-  verify: true
+  url: "http://connect.biorxiv.org/biorxiv_xml.php?subject=plant_biology"
 
 nih_guide:
   kind: rss
