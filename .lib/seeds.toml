@@ -197,3 +197,14 @@ tests = 29
 boundary = "docs/seeds/github-repo-search.md"
 when_to_use = "You want to see software as it appears rather than as it is later written up. GitHub search reaches both what is new (created:) and what is alive (pushed:), and it surfaces the tools nobody packaged."
 demand = "Measured 2026-09-17: for one language and one topic, 125 repositories pushed in 30 days and 10 created, two of them the same day, none appearing in crates.io, OpenAlex or bioRxiv. The module exists mainly for two lying successes — incomplete_results on a 200, and a spent search limit reported as 403."
+
+[[seed]]
+slug = "ascii-timeseries"
+path = "src/brief/lib/ascii_timeseries.py"
+test = "tests/test_ascii_timeseries.py"
+planted = "2026-09-17"
+band = "unscored"
+tests = 27
+boundary = "docs/seeds/ascii-timeseries.md"
+when_to_use = "You have dated records and want the shape of them over time without a plotting dependency or a browser. Reach for it especially when a gap matters: a Counter over the dates you have cannot show a period in which nothing happened."
+demand = "Written for `brief trends`. The empty-bucket rule is not theoretical — it is the difference between seeing a collapse in activity and seeing a smooth line."

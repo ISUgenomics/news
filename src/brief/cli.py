@@ -772,6 +772,98 @@ def reindex(
 
 
 @app.command()
+def trends(
+    root: Path = typer.Option(ROOT),
+    profile: str = typer.Option(None, help="only this profile's sources, and its keyword filter"),
+    by: str = typer.Option("week", help="day | week | month"),
+    periods: int = typer.Option(12, help="how many buckets back from the most recent"),
+    dates: str = typer.Option(
+        "published", help="published = when it happened; fetched = when we learned of it"
+    ),
+    source: str = typer.Option(None, help="only this source"),
+) -> None:
+    """How much arrived per day, week or month, per source.
+
+    Counts what is already stored; fetches nothing. `published` dates answer
+    "how much is the field producing", and work from the first run because
+    the sources carry history. `fetched` answers "how much are we learning",
+    and only becomes meaningful once ingest has run on more than one day.
+    """
+    from brief.lib.ascii_timeseries import BUCKETS, bucket_of, bucket_range, render_bars, tally
+
+    if by not in BUCKETS:
+        raise typer.BadParameter(f"by must be one of {list(BUCKETS)}")
+    if dates not in ("published", "fetched"):
+        raise typer.BadParameter("dates must be 'published' or 'fetched'")
+
+    config, _sources, profiles = load_world(root)
+    conn = db.connect(root / str(config.get("db", "data/items.db")))
+
+    wanted_keys: set[str] | None = None
+    prof = None
+    if profile:
+        prof = next((p for p in profiles if p.name == profile), None)
+        if prof is None:
+            raise typer.BadParameter(f"no profile named {profile!r}")
+        wanted_keys = {ref.source_key() for ref in prof.sources}
+
+    column = "published_at" if dates == "published" else "fetched_at"
+    rows = [
+        dict(r)
+        for r in conn.execute(
+            f"SELECT source, source_key, title, coalesce(body,'') AS body, {column} AS when_ts "
+            f"FROM items WHERE {column} IS NOT NULL"
+        )
+    ]
+    if wanted_keys is not None:
+        rows = [r for r in rows if r["source_key"] in wanted_keys]
+    if source:
+        rows = [r for r in rows if r["source"] == source]
+
+    # The profile's own keyword filter, so "AI news per week" means the same
+    # thing here as it does in the brief.
+    if prof is not None and prof.relevance.any_of:
+        from brief.lib.keyword_relevance import filter_ranked
+
+        rows = [
+            row
+            for row, _hits in filter_ranked(
+                rows,
+                lambda r: f"{r['title']} {r['body']}",
+                prof.relevance.any_of,
+                prof.relevance.none_of,
+            )
+        ]
+
+    if not rows:
+        log("trends.empty", profile=profile, source=source, dates=dates)
+        typer.echo("no stored items match that selection")
+        return
+
+    counts, unparsed = tally(
+        rows, date_of=lambda r: r["when_ts"], series_of=lambda r: r["source"], by=by
+    )
+    stamps = sorted(str(r["when_ts"])[:10] for r in rows)
+    axis = bucket_range(stamps[0], stamps[-1], by=by)[-periods:]
+    # Drop series with nothing in the visible window rather than printing
+    # empty rows for sources whose history predates it.
+    visible = {
+        name: row for name, row in counts.items() if any(row.get(b) for b in axis)
+    }
+
+    typer.echo(f"items per {by}, by {dates} date"
+               + (f", profile {profile}" if profile else "")
+               + f"  ({len(rows):,} items)")
+    typer.echo("")
+    typer.echo(render_bars(visible, axis))
+    if unparsed:
+        typer.echo(f"\n{unparsed:,} item(s) had an unreadable {column} and are not counted")
+    hidden = len(counts) - len(visible)
+    if hidden:
+        typer.echo(f"{hidden} source(s) had nothing in this window")
+
+
+@app.command()
 def doctor(root: Path = typer.Option(ROOT)) -> None:
     """Report whether each profile's LLM provider is usable, and why not.
 
