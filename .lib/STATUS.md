@@ -5,7 +5,7 @@
 # news — codeLibrary status
 
 **Repo:** `/Users/andrewseverin/AI/news`  
-**HEAD:** 4cf811b on `feat/scaffold`  
+**HEAD:** 050942f on `feat/scaffold`  
 **Generated:** 2026-09-17 — refresh with `/lib-status`
 
 ## Extracted into codeLibrary
@@ -69,14 +69,14 @@ Learned in other repos, matched to this one's shape. Full set and evidence: `cod
   *Why:* A check that cannot fail is worse than no check: it reports success, so nobody looks again. A verifier that no longer matches the format it reads manufactures false failures instead. *(seen in: knowledge_graph, news)*
 - **Validate the response shape you actually got** — Type-check the fields you read from an external API rather than assuming a structure, and give each integration a standalone test mode you can run against the live service before wiring it in. Save a real response as a fixture.
   *Why:* Providers change shapes between versions — a list of strings becomes a list of dicts — and the pipeline fails silently, producing empty results rather than an error. *(seen in: knowledge_graph, news)*
+- **Name the authoritative source per field** — For every factual field, decide which source owns it and say so in both the code and the prompt. Label data by source in what the model sees, so it can resolve conflicts instead of guessing. Give domain categories explicit rules and a default, rather than relying on the model's world knowledge.
+  *Why:* A model will infer an institution from paper topics, or call a Facility Manager 'faculty', because the term overlaps with ordinary English. It is confident either way. *(seen in: knowledge_graph, news)*
 - **Backfill deterministically; re-run the model only for judgement** — When a change affects existing records, write a script that edits them directly. Re-invoke the model only where its judgement is genuinely what changed.
   *Why:* Re-running the pipeline is slow, costs tokens, and silently rewrites content that was fine — so the diff no longer shows what your change did. *(seen in: knowledge_graph, news)*
 - **Check what is installed before writing a fallback** — Before hand-rolling a parser or extractor, check what the environment already has. If the good path is unavailable, fail cleanly — do not add a crude fallback that returns something.
   *Why:* A fallback producing garbage is worse than none: the caller cannot tell garbage from data, so it gets used. A clean failure is information, and the caller skips the step. *(seen in: knowledge_graph, news)*
-- **Normalise unicode before you dedup** — A dedup key normalises unicode variants to ASCII — dashes, quotes, whitespace, accents — not just case.
-  *Why:* Two sources give the same record different encodings. An en-dash against a hyphen makes one record two, and the duplicate is invisible because both look right. *(seen in: knowledge_graph, news)*
 
-…and 7 more in `PRACTICES.md`.
+…and 12 more in `PRACTICES.md`.
 
 ## This project's own docs
 
