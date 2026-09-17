@@ -737,3 +737,71 @@ def test_the_weekly_run_applies_the_publication_age_bound(tmp_path, monkeypatch)
         "a deep historical ingest must not flood the weekly brief"
     )
     conn.close()
+
+
+def test_synthesize_refuses_a_past_week_and_points_at_backfill(tmp_path, stub_http):
+    """It selects by FETCH date, so a past week would be briefed with this week's items.
+
+    Caught in use: `synthesize --week 2026-08-10` silently rebuilt that week from
+    the current window, considering 177 items none of which were published then.
+    """
+    root = project(tmp_path, stub_http.url + "/feed")
+    result = runner.invoke(
+        cli.app, ["synthesize", "--week", "2020-01-06", "--root", str(root)]
+    )
+    assert result.exit_code != 0
+    assert "backfill" in result.output, "the message must name the tool that is correct"
+
+
+def test_synthesize_still_accepts_the_current_week(tmp_path, stub_http, monkeypatch):
+    root = project(tmp_path, stub_http.url + "/feed")
+    this_week = cli.monday_of(datetime.now(timezone.utc))
+    monkeypatch.setattr(
+        cli.llm, "require_provider",
+        lambda cfg: (_ for _ in ()).throw(cli.llm.ProviderNotAvailable("x", "no provider")),
+    )
+    result = runner.invoke(
+        cli.app, ["synthesize", "--week", this_week, "--root", str(root)]
+    )
+    assert "is not the current week" not in result.output
+
+
+def test_backfill_force_regenerates_a_week_that_already_has_a_brief(tmp_path, stub_http):
+    """Needed after a prompt or item-format change; the default still skips."""
+    root = _backfill_project(tmp_path, stub_http)
+    conn = db.connect(root / "data" / "items.db")
+    db.record_brief(
+        conn, profile="good", week_start="2026-08-10", generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=[], raw_response="{}",
+        result_json='{"buckets": []}', markdown="# old",
+    )
+    conn.close()
+
+    without = runner.invoke(cli.app, ["backfill", "--since", "2026-08-10",
+                                      "--until", "2026-08-10", "--root", str(root), "--dry-run"])
+    assert [e for e in events(without) if e["event"] == "backfill.plan"][0]["weeks"] == []
+
+    with_force = runner.invoke(cli.app, ["backfill", "--since", "2026-08-10",
+                                         "--until", "2026-08-10", "--root", str(root),
+                                         "--force", "--dry-run"])
+    assert [e for e in events(with_force) if e["event"] == "backfill.plan"][0]["weeks"] == ["2026-08-10"]
+
+
+def test_backfill_force_still_refuses_a_delivered_week(tmp_path, stub_http):
+    """Rebuilding a page someone has read would destroy its provenance."""
+    root = _backfill_project(tmp_path, stub_http)
+    conn = db.connect(root / "data" / "items.db")
+    db.record_brief(
+        conn, profile="good", week_start="2026-08-10", generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=[], raw_response="{}",
+        result_json='{"buckets": []}', markdown="# delivered",
+    )
+    db.mark_sent(conn, "good", "2026-08-10", now=NOW)
+    conn.close()
+
+    result = runner.invoke(cli.app, ["backfill", "--since", "2026-08-10", "--until",
+                                     "2026-08-10", "--root", str(root), "--force"])
+    assert any(e["event"] == "backfill.already_delivered" for e in events(result))
+    conn = db.connect(root / "data" / "items.db")
+    assert db.get_brief(conn, "good", "2026-08-10")["markdown"] == "# delivered"
+    conn.close()

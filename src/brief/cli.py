@@ -283,7 +283,16 @@ def synthesize(
     config, _sources, profiles = load_world(root)
     now = datetime.now(timezone.utc)
     week_start = week or monday_of(now)
-    conn = db.connect(root / str(config.get("db", "data/items.db")))
+    conn = db.connect(root / (str(config.get("db") or "data/items.db")))
+
+    if week and week_start != monday_of(now):
+        raise typer.BadParameter(
+            f"--week {week_start} is not the current week. synthesize selects items "
+            f"by when they were FETCHED, so asking it for a past week would brief "
+            f"that week using THIS week's items. Use: brief backfill --since "
+            f"{week_start} --until {week_start} --force , which selects by "
+            f"publication date."
+        )
 
     failures = 0
     for prof in pick(profiles, profile, all_profiles):
@@ -320,6 +329,7 @@ def _synthesize_one(
     now: datetime,
     root: Path,
     rows: list[dict[str, Any]] | None = None,
+    replace: bool = False,
 ) -> None:
     """Synthesize one week. `rows` lets backfill supply a different window.
 
@@ -506,6 +516,9 @@ def backfill(
     root: Path = typer.Option(ROOT),
     max_weeks: int = typer.Option(52, help="Guard against a mistyped year"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the plan, generate nothing"),
+    force: bool = typer.Option(
+        False, "--force", help="Regenerate weeks that already have a brief"
+    ),
 ) -> None:
     """Generate briefs for past weeks that do not have one.
 
@@ -516,7 +529,8 @@ def backfill(
 
     A week that already has a brief is skipped, not regenerated. Backfill fills
     gaps, and quietly overwriting a brief you have already read would destroy
-    its provenance. Use `synthesize --week X --force` to rebuild one on purpose.
+    its provenance. `--force` rebuilds them anyway, which is what you want after
+    changing the prompt or the item format; a delivered week is still refused.
 
     Expect older weeks to be thin. The feeds serve only their most recent
     entries, so how far back this reaches is a property of the sources rather
@@ -539,7 +553,9 @@ def backfill(
                 since=since_date,
                 until=until_date,
                 cadence="weekly",
-                done=[date.fromisoformat(w) for w in db.brief_weeks(conn, prof.name)],
+                done=[] if force else [
+                    date.fromisoformat(w) for w in db.brief_weeks(conn, prof.name)
+                ],
                 today=now.date(),
                 max_periods=max_weeks,
             )
@@ -571,6 +587,15 @@ def backfill(
             if not rows:
                 log("backfill.empty_week", profile=prof.name, week=week.isoformat())
                 continue
+            stored = db.get_brief(conn, prof.name, week.isoformat())
+            if force and stored and stored["sent_at"]:
+                log(
+                    "backfill.already_delivered",
+                    profile=prof.name,
+                    week=week.isoformat(),
+                    sent_at=stored["sent_at"],
+                )
+                continue
             try:
                 _synthesize_one(
                     conn,
@@ -579,6 +604,7 @@ def backfill(
                     now=now,
                     root=root,
                     rows=rows,
+                    replace=force,
                 )
             except Exception as exc:
                 failures += 1
@@ -608,7 +634,7 @@ def deliver(
     config, _sources, profiles = load_world(root)
     now = datetime.now(timezone.utc)
     week_start = week or monday_of(now)
-    conn = db.connect(root / str(config.get("db", "data/items.db")))
+    conn = db.connect(root / (str(config.get("db") or "data/items.db")))
 
     failures = 0
     for prof in pick(profiles, profile, all_profiles):
