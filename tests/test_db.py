@@ -451,3 +451,32 @@ def test_brief_weeks_lists_what_is_already_done(conn):
         )
     assert db.brief_weeks(conn, "p") == ["2026-08-31", "2026-09-07"]
     assert db.brief_weeks(conn, "other") == []
+
+
+def test_a_stub_does_not_count_as_a_finished_week(conn):
+    """A stub records a week that could NOT be briefed; freezing that is wrong.
+
+    After a deep historical ingest a week stubbed when the database held three
+    items should be reconsidered once it holds thirty.
+    """
+    for week, result in (
+        ("2026-08-03", '{"stub": true, "reason": "nothing matched"}'),
+        ("2026-08-10", '{"buckets": []}'),
+    ):
+        db.record_brief(
+            conn, profile="p", week_start=week, generated_at=NOW, provider="x", model="m",
+            prompt_hash="h", input_item_ids=[], raw_response="{}", result_json=result,
+            markdown="#",
+        )
+    assert db.brief_weeks(conn, "p") == ["2026-08-10"]
+    assert db.brief_weeks(conn, "p", include_stubs=True) == ["2026-08-03", "2026-08-10"]
+
+
+def test_unparseable_stored_result_counts_as_a_real_brief(conn):
+    """Fail toward keeping what exists; overwriting is the destructive direction."""
+    db.record_brief(
+        conn, profile="p", week_start="2026-08-03", generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=[], raw_response="{}",
+        result_json="not json at all", markdown="#",
+    )
+    assert db.brief_weeks(conn, "p") == ["2026-08-03"]

@@ -298,12 +298,34 @@ def items_published_between(
     return [dict(r) for r in cur.fetchall()]
 
 
-def brief_weeks(conn: sqlite3.Connection, profile: str) -> list[str]:
-    """Weeks this profile already has a brief for, as ISO dates."""
+def brief_weeks(
+    conn: sqlite3.Connection, profile: str, *, include_stubs: bool = False
+) -> list[str]:
+    """Weeks this profile has a real brief for, as ISO dates.
+
+    A stub is excluded by default, because a stub is the record of a week that
+    could NOT be briefed — no provider, no matching items — and treating it as
+    done would permanently freeze that failure. This matters after a deep
+    historical ingest: a week stubbed when the database held three items should
+    be reconsidered once it holds thirty.
+
+    A stub is cheap to reconsider. An empty week short-circuits before the model
+    is called, so retrying one that is genuinely empty costs a query.
+    """
     cur = conn.execute(
-        "SELECT week_start FROM briefs WHERE profile = ? ORDER BY week_start", (profile,)
+        "SELECT week_start, result_json FROM briefs WHERE profile = ? ORDER BY week_start",
+        (profile,),
     )
-    return [r["week_start"] for r in cur.fetchall()]
+    weeks = []
+    for row in cur.fetchall():
+        if not include_stubs:
+            try:
+                if json.loads(row["result_json"] or "{}").get("stub"):
+                    continue
+            except ValueError:
+                pass
+        weeks.append(row["week_start"])
+    return weeks
 
 
 def last_seen_by_source(conn: sqlite3.Connection) -> dict[str, str]:
