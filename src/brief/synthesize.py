@@ -31,7 +31,7 @@ from brief.lib.llm_json_contract import (
     jsonschema_validator,
 )
 from brief.models import Profile
-from brief.select import Selection
+from brief.select import ITEM_RENDER_VERSION, Selection
 
 PROMPTS = Path(__file__).parent / "prompts"
 
@@ -94,8 +94,17 @@ def render_system_prompt(
     return template
 
 
-def prompt_hash(system_prompt: str) -> str:
-    return hashlib.sha256(system_prompt.encode("utf-8")).hexdigest()
+def prompt_hash(system_prompt: str, *, item_render_version: int = ITEM_RENDER_VERSION) -> str:
+    """Everything that decides what the model saw, not just the system turn.
+
+    The item-render version is in here because the user turn is assembled from
+    a template too. Hashing only the system prompt would let a change to how an
+    item is presented produce an identical hash over genuinely different input,
+    and the whole point of storing the hash is to answer "did these two briefs
+    see the same thing?"
+    """
+    blob = f"v{item_render_version}\x00{system_prompt}"
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
 def synthesize(

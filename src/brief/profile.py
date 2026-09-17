@@ -29,7 +29,7 @@ from typing import Any
 import yaml
 
 from brief.lib.config_env_interpolate import interpolate_config
-from brief.models import Bucket, Delivery, Profile, Relevance, SourceRef
+from brief.models import DEFAULT_SUBJECT, Bucket, Delivery, Profile, Relevance, SourceRef
 from brief.vendor.layered_config_overlay import deep_merge
 
 # Blocks a profile may override on top of config.yaml.
@@ -122,29 +122,43 @@ def load_all_profiles(
     sources: Mapping[str, Mapping[str, Any]],
     env: Mapping[str, str],
 ) -> list[Profile]:
-    """Every `*.yaml` under `directory`, sorted by filename.
+    """Every `*.yaml` and `*.yml` under `directory`, sorted by filename.
 
     A profile that fails validation raises. The caller decides whether one bad
     profile stops the run or is skipped; this module does not swallow it.
     """
     d = Path(directory)
-    return [
-        load_profile(f, config=config, sources=sources, env=env)
-        for f in sorted(d.glob("*.yaml"))
-    ]
+    files = sorted([*d.glob("*.yaml"), *d.glob("*.yml")])
+    profiles = [load_profile(f, config=config, sources=sources, env=env) for f in files]
+
+    seen: dict[str, Path] = {}
+    for file, profile in zip(files, profiles):
+        if profile.name in seen:
+            raise ProfileError(
+                file,
+                "name",
+                f"duplicates {profile.name!r} already declared in {seen[profile.name].name}; "
+                f"two profiles with one name would overwrite each other's stored brief",
+            )
+        seen[profile.name] = file
+    return profiles
 
 
-def fetch_plan(profiles: list[Profile]) -> list[tuple[str, dict[str, Any]]]:
+def fetch_plan(profiles: list[Profile]) -> list[tuple[str, dict[str, Any], str]]:
     """The deduplicated set of fetches every profile between them requires.
 
     Two profiles naming the same source with the same parameters is one fetch;
     with different parameters, two. This is what keeps source cost flat as
     profiles multiply.
+
+    Each entry is ``(name, params, source_key)``. The key is what the fetched
+    rows are stored under, so the separation established here survives into
+    storage instead of collapsing back to the source name.
     """
-    seen: dict[tuple[str, str], tuple[str, dict[str, Any]]] = {}
+    seen: dict[tuple[str, str], tuple[str, dict[str, Any], str]] = {}
     for profile in profiles:
         for ref in profile.sources:
-            seen.setdefault(ref.key(), (ref.name, dict(ref.params)))
+            seen.setdefault(ref.key(), (ref.name, dict(ref.params), ref.source_key()))
     return [seen[k] for k in sorted(seen)]
 
 
@@ -190,7 +204,7 @@ def _parse_relevance(raw: Mapping[str, Any], path: Path) -> Relevance:
     block = raw.get("relevance") or {}
     if not isinstance(block, Mapping):
         raise ProfileError(path, "relevance", "must be a mapping")
-    any_of = tuple(block.get("any_of") or ())
+    any_of = _terms(block.get("any_of"), path, "relevance.any_of")
     if not any_of:
         raise ProfileError(
             path,
@@ -201,8 +215,40 @@ def _parse_relevance(raw: Mapping[str, Any], path: Path) -> Relevance:
     if not isinstance(max_items, int) or max_items < 1:
         raise ProfileError(path, "relevance.max_items", "must be a positive integer")
     return Relevance(
-        any_of=any_of, none_of=tuple(block.get("none_of") or ()), max_items=max_items
+        any_of=any_of,
+        none_of=_terms(block.get("none_of"), path, "relevance.none_of"),
+        max_items=max_items,
     )
+
+
+def _terms(value: Any, path: Path, field: str) -> tuple[str, ...]:
+    """A keyword list, refusing the two shapes that silently break the filter.
+
+    A bare string is the trap: ``any_of: genome`` is natural YAML and iterating
+    it yields one keyword per character, which matches nearly everything and
+    turns the filter off without any error. A blank entry does the same, since
+    an empty pattern matches every text.
+    """
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        raise ProfileError(
+            path,
+            field,
+            f"must be a list, not the bare string {value!r} — a string would be read "
+            f"as one keyword per character and match almost everything",
+        )
+    if not isinstance(value, (list, tuple)):
+        raise ProfileError(path, field, f"must be a list, got {type(value).__name__}")
+    terms = []
+    for index, term in enumerate(value):
+        text = str(term).strip()
+        if not text:
+            raise ProfileError(
+                path, f"{field}[{index}]", "is blank; an empty term matches every item"
+            )
+        terms.append(text)
+    return tuple(terms)
 
 
 def _parse_buckets(raw: Mapping[str, Any], path: Path) -> tuple[Bucket, ...]:
@@ -241,7 +287,7 @@ def _parse_delivery(merged: Mapping[str, Any], path: Path) -> Delivery:
     return Delivery(
         sender=str(sender),
         to=tuple(str(x) for x in to),
-        subject=str(block.get("subject", Delivery.subject)),
+        subject=str(block.get("subject") or DEFAULT_SUBJECT),
     )
 
 

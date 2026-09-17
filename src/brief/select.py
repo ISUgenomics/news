@@ -41,6 +41,13 @@ DEFAULT_OUTPUT_RESERVE_TOKENS = 4000
 DEFAULT_PROMPT_OVERHEAD_TOKENS = 1500
 DEFAULT_MAX_ITEM_CHARS = 6000
 
+# Bump when `_render_for_prompt` changes shape. It feeds `briefs.prompt_hash`,
+# so that two briefs with the same hash really did see the same input. Without
+# it, changing how an item is presented to the model leaves the hash identical
+# over genuinely different input, and a regeneration diff would be misread as a
+# model difference.
+ITEM_RENDER_VERSION = 1
+
 
 @dataclass(frozen=True, slots=True)
 class Candidate:

@@ -76,12 +76,16 @@ def test_profile_params_override_the_source_declaration(stub_http):
 
 def test_rss_adapter_maps_a_feed_entry_onto_an_item(stub_http):
     stub_http.route("/feed", RSS)
-    items = fetch(
+    items, state = fetch(
         "my_feed",
         {"kind": "rss"},
         {"url": stub_http.url + "/feed"},
         since=SINCE,
         now=NOW,
+    )
+    assert set(state) == {"etag", "last_modified"}, (
+        "a feed adapter must hand back the validators, or conditional fetch "
+        "can never fire on the next run"
     )
 
     assert len(items) == 1
@@ -99,7 +103,7 @@ def test_rss_adapter_maps_a_feed_entry_onto_an_item(stub_http):
 def test_rss_adapter_falls_back_to_the_url_when_an_entry_has_no_title(stub_http):
     feed = RSS.replace(b"<title>A long enough summary to be kept as-is</title>", b"")
     stub_http.route("/feed", feed)
-    items = fetch(
+    items, _ = fetch(
         "f", {"kind": "rss"}, {"url": stub_http.url + "/feed"}, since=SINCE, now=NOW
     )
     assert items[0].title == "https://example.test/one", (
@@ -113,7 +117,7 @@ def test_rss_adapter_keeps_a_thin_entry_when_its_article_page_will_not_load(stub
     stub_http.route("/feed", thin)
     stub_http.route("/one", lambda req: (404, b"gone"))
 
-    items = fetch(
+    items, _ = fetch(
         "f",
         {"kind": "rss"},
         {"url": stub_http.url + "/feed", "expand_thin_entries": True},
@@ -121,6 +125,18 @@ def test_rss_adapter_keeps_a_thin_entry_when_its_article_page_will_not_load(stub
         now=NOW,
     )
     assert items[0].body == "too short"
+
+    # And identically on a retry: a body that alternates between the summary
+    # and the article text hashes differently, so one flaky page would store
+    # the same entry twice and send both to the model as separate news.
+    again, _ = fetch(
+        "f",
+        {"kind": "rss"},
+        {"url": stub_http.url + "/feed", "expand_thin_entries": True},
+        since=SINCE,
+        now=NOW,
+    )
+    assert again[0].body == items[0].body
 
 
 def test_rss_adapter_can_be_told_not_to_expand_at_all(stub_http):
@@ -195,7 +211,9 @@ def test_award_adapters_carry_every_field_onto_the_item(
     }[kind]
     monkeypatch.setattr(target[0], target[1], lambda **kw: [record])
 
-    (item,) = fetch(kind, {"kind": kind}, params, since=SINCE, now=NOW)
+    (items, state) = fetch(kind, {"kind": kind}, params, since=SINCE, now=NOW)
+    (item,) = items
+    assert state == {}, "an award API has no cache validators to remember"
     assert item.source == kind
     assert item.external_id == record["external_id"]
     assert item.url == record["url"]
@@ -269,13 +287,14 @@ def test_pubmed_adapter_builds_a_citation_line_as_the_body(monkeypatch):
     }
     monkeypatch.setattr(brief.sources.pubmed, "search_pubmed", lambda *a, **kw: [record])
 
-    (item,) = fetch(
+    (items, _) = fetch(
         "pubmed_search",
         {"kind": "pubmed", "email": "a@example.test"},
         {"query": "testing"},
         since=SINCE,
         now=NOW,
     )
+    (item,) = items
     assert "Journal of Testing" in item.body
     assert "Doe A" in item.body
     assert item.external_id == "40000000"
@@ -284,13 +303,14 @@ def test_pubmed_adapter_builds_a_citation_line_as_the_body(monkeypatch):
     monkeypatch.setattr(
         brief.sources.pubmed, "search_pubmed", lambda *a, **kw: [without_raw]
     )
-    (bare,) = fetch(
+    (bare_items, _) = fetch(
         "pubmed_search",
         {"kind": "pubmed", "email": "a@example.test"},
         {"query": "testing"},
         since=SINCE,
         now=NOW,
     )
+    (bare,) = bare_items
     assert bare.body == "", "dropping raw silently empties the body — keep raw"
 
 

@@ -379,3 +379,58 @@ def test_the_stub_page_says_why_and_how_many_candidates_there_were():
     assert "No brief was generated" in page
     assert "claude is not on PATH." in page
     assert "17 candidate items" in page
+
+
+# --- found by the adversarial review; each of these was a real defect --------
+
+
+def test_the_provenance_line_comes_from_config_not_from_code(conn):
+    """Rule 2: no string in src/brief/ may name an institution."""
+    profile = make_profile(
+        config={
+            "smtp": {},
+            "delivery": {"provenance": "Prepared by the Example Office of Research."},
+        }
+    )
+    _, _, page = run(conn, profile, StubProvider(good_reply()))
+    assert "Example Office of Research" in page.markdown
+
+    import pathlib
+
+    src = pathlib.Path(__file__).resolve().parent.parent / "src" / "brief"
+    for path in src.rglob("*.py"):
+        if "vendor" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8")
+        for named in ("Iowa State", "iastate", "VPR", "bioinformatics facility"):
+            assert named not in text, f"{path.name} names {named!r}; that belongs in config"
+
+
+def test_a_default_provenance_still_promises_only_what_the_code_delivers(conn):
+    _, _, page = run(conn, make_profile(), StubProvider(good_reply()))
+    assert "links to its source" in page.markdown, "the citation rule is the promise"
+
+
+def test_a_section_the_model_invented_is_dropped_and_counted(conn):
+    """The profile decides what sections a brief has, not the model."""
+    reply = json.dumps(
+        {
+            "buckets": [
+                {"name": "Funding", "entries": [{"text": "A real one.", "item_ids": [1]}]},
+                {"name": "Rumours", "entries": [{"text": "Made up.", "item_ids": [1]}]},
+            ]
+        }
+    )
+    _, _, page = run(conn, make_profile(), StubProvider(reply))
+    assert "Rumours" not in page.markdown
+    assert "Made up" not in page.markdown
+    assert "A real one" in page.markdown
+    assert "not declared by this profile" in page.markdown, "and the reader is told"
+
+
+def test_prompt_hash_changes_when_the_item_rendering_changes(conn):
+    """Otherwise two briefs over genuinely different input share a hash."""
+    prompt = synth_mod.render_system_prompt(make_profile(), schema=synth_mod.load_schema())
+    assert synth_mod.prompt_hash(prompt, item_render_version=1) != synth_mod.prompt_hash(
+        prompt, item_render_version=2
+    )

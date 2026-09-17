@@ -5,9 +5,21 @@ application's policy about what counts as a usable body, and the `feed-fetch`
 and `page-main-text` seeds are deliberately ignorant of it — that split is what
 lets either one graduate on its own.
 
-A page that will not load is not a failed feed. The entry is kept with its
-short summary and a debug note; losing a real item because its article page
-404s would be worse than a thin entry.
+Two decisions worth stating, because both were wrong in the first version:
+
+**Cache validators round-trip.** The seed accepts an ETag and a Last-Modified
+and returns whatever the server sent back. If the caller does not persist them,
+the conditional request can never fire and every poll downloads the whole feed.
+They are read from and written to the database by the caller, keyed by the same
+fetch identity as the rows.
+
+**A failed article page does not change the stored item.** If a thin entry's
+page will not load, the entry is kept with its short summary — losing a real
+item because its page 404s would be worse. But it must be kept *identically*
+each time: a body that alternates between the summary and the article text
+hashes differently, so one flaky page would store the same entry twice and send
+both to the model as if they were separate news. So expansion either succeeds or
+leaves the entry exactly as the feed gave it.
 """
 
 from __future__ import annotations
@@ -29,11 +41,18 @@ def fetch(
     *,
     since: datetime,
     now: datetime,
-) -> list[Item]:
+    state: Mapping[str, str | None] | None = None,
+) -> tuple[list[Item], dict[str, str | None]]:
+    """Fetch one feed. Returns the items and the validators to store.
+
+    Returning the validators rather than writing them keeps this adapter free
+    of the database, per CLAUDE.md rule 5. The caller persists them.
+    """
+    state = state or {}
     result = fetch_feed(
         str(params["url"]),
-        etag=params.get("etag"),
-        last_modified=params.get("last_modified"),
+        etag=state.get("etag"),
+        last_modified=state.get("last_modified"),
         timeout_s=float(params.get("timeout_s", 30.0)),
     )
 
@@ -55,11 +74,21 @@ def fetch(
                 published_at=entry.get("published_at"),
             )
         )
-    return items
+    return items, {
+        "etag": result.get("etag"),
+        "last_modified": result.get("last_modified"),
+    }
 
 
 def _expand(url: str, fallback: str) -> str:
+    """The article text, or the feed's own summary unchanged.
+
+    Unchanged matters: returning a partial or an empty string on failure would
+    give the same entry a different content hash on the next run and store it
+    twice.
+    """
     try:
-        return page_main_text(url)["text"]
+        text = page_main_text(url)["text"]
     except PageFetchError:
         return fallback
+    return text or fallback

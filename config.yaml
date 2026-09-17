@@ -8,6 +8,15 @@ smtp:
   host: mailhub.iastate.edu
   port: 25
 
+delivery:
+  # The line every brief carries in its footer, so a reader can forward the
+  # page without vouching for it personally. It names an organization, which is
+  # a fact about this deployment and not about the code — a profile may override
+  # it. Keep the "links to its source" half: it is what the citation rule buys.
+  provenance: >-
+    Prepared automatically by the bioinformatics facility at Iowa State
+    University from public sources; every statement links to its source.
+
 llm:
   provider: claude-cli          # claude-cli | codex-cli | local | anthropic-api
   # model: claude-opus-5        # anthropic-api only; the CLIs use their own default

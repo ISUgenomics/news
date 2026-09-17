@@ -58,6 +58,10 @@ def read_env(root: Path) -> dict[str, str]:
     The file wins over the process so an operator can override a stale
     exported value without hunting for the shell that set it. Values are never
     logged.
+
+    Read as ``utf-8-sig`` and tolerant of a leading ``export``, because both
+    are what people actually put in these files, and a variable silently lost
+    to a byte-order mark surfaces much later as a puzzling 401.
     """
     import os
 
@@ -66,12 +70,17 @@ def read_env(root: Path) -> dict[str, str]:
         path = root / name
         if not path.exists():
             continue
-        for line in path.read_text(encoding="utf-8").splitlines():
+        for line in path.read_text(encoding="utf-8-sig").splitlines():
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:
                 continue
+            if line.startswith("export "):
+                line = line[len("export ") :]
             key, _, value = line.partition("=")
-            env[key.strip()] = value.strip().strip('"').strip("'")
+            key = key.strip()
+            if not key:
+                continue
+            env[key] = value.strip().strip('"').strip("'")
         break
     return env
 
@@ -116,29 +125,57 @@ def ingest(
     """
     config, sources, profiles = load_world(root)
     now = datetime.now(timezone.utc)
-    conn = db.connect(root / str(config.get("db", "data/items.db")))
+    conn = db.connect(root / (str(config.get("db") or "data/items.db")))
 
-    plan = [(n, p) for n, p in fetch_plan(profiles) if source is None or n == source]
-    since = now - timedelta(days=int(config.get("ingest", {}).get("lookback_days", 30)))
-    body_cap = int(config.get("ingest", {}).get("body_cap_bytes", db.DEFAULT_BODY_CAP))
+    ingest_cfg = config.get("ingest") or {}
+    plan = [
+        (n, p, k) for n, p, k in fetch_plan(profiles) if source is None or n == source
+    ]
+    since = now - timedelta(days=int(ingest_cfg.get("lookback_days", 30)))
+    body_cap = int(ingest_cfg.get("body_cap_bytes", db.DEFAULT_BODY_CAP))
 
     total_new = 0
     failures = 0
-    for name, params in plan:
+    for name, params, key in plan:
+        # The upsert is inside the try on purpose: a single malformed item
+        # must cost that source, not the rest of the run.
         try:
-            items = fetch_source(name, sources[name], params, since=since, now=now)
+            items, state = fetch_source(
+                name,
+                sources[name],
+                params,
+                since=since,
+                now=now,
+                state=db.get_source_state(conn, key),
+            )
+            added = db.upsert_items(
+                conn, items, now=now, source_key=key, body_cap=body_cap
+            )
+            if state:
+                db.set_source_state(
+                    conn,
+                    key,
+                    etag=state.get("etag"),
+                    last_modified=state.get("last_modified"),
+                    now=now,
+                )
         except Exception as exc:
             failures += 1
-            log("source.error", source=name, error=str(exc), type=type(exc).__name__)
+            log(
+                "source.error",
+                source=name,
+                source_key=key,
+                error=str(exc),
+                type=type(exc).__name__,
+            )
             continue
-        added = db.upsert_items(conn, items, now=now, body_cap=body_cap)
         total_new += added
-        log("source.ok", source=name, fetched=len(items), new=added)
+        log("source.ok", source=name, source_key=key, fetched=len(items), new=added)
 
-    threshold = float(config.get("ingest", {}).get("silent_source_days", 14))
+    threshold = float(ingest_cfg.get("silent_source_days", 14))
     silent = db.silent_sources(
         db.last_seen_by_source(conn),
-        [n for n, _ in plan],
+        [k for _n, _p, k in plan],
         now=now,
         threshold_days=threshold,
     )
@@ -162,8 +199,17 @@ def synthesize(
     week: str | None = typer.Option(
         None, help="Monday, ISO date; defaults to this week"
     ),
+    force: bool = typer.Option(
+        False, "--force", help="Regenerate a week that has already been delivered"
+    ),
 ) -> None:
-    """Turn the week's candidates into a brief, once per profile."""
+    """Turn the week's candidates into a brief, once per profile.
+
+    A week that has already been delivered is left alone. Overwriting it would
+    replace the provenance of a page somebody has already read — the stored
+    prompt hash, provider and raw response that make a claim checkable after
+    the fact. `--force` is the deliberate way to regenerate one.
+    """
     config, _sources, profiles = load_world(root)
     now = datetime.now(timezone.utc)
     week_start = week or monday_of(now)
@@ -171,6 +217,16 @@ def synthesize(
 
     failures = 0
     for prof in pick(profiles, profile, all_profiles):
+        existing = db.get_brief(conn, prof.name, week_start)
+        if existing and existing["sent_at"] and not force:
+            log(
+                "synthesize.already_delivered",
+                profile=prof.name,
+                week=week_start,
+                sent_at=existing["sent_at"],
+                hint="pass --force to regenerate and discard its provenance",
+            )
+            continue
         try:
             _synthesize_one(conn, prof, week_start=week_start, now=now, root=root)
         except Exception as exc:
@@ -190,12 +246,16 @@ def _synthesize_one(
     conn, prof: Profile, *, week_start: str, now: datetime, root: Path
 ) -> None:
     rows = db.items_fetched_since(
-        conn, [r.name for r in prof.sources], since=now - timedelta(days=7)
+        conn, [r.source_key() for r in prof.sources], since=now - timedelta(days=7)
     )
 
     try:
         provider = llm.require_provider(prof.llm)
-    except (llm.ProviderNotAvailable, ValueError) as exc:
+        window = provider.context_window()
+    except Exception as exc:
+        # Every provider failure class lands here — missing binary, bad config,
+        # a rate limit, an Ollama that died mid-probe. The reader gets a page
+        # saying so; silence would be indistinguishable from a quiet week.
         _record_stub(
             conn,
             prof,
@@ -204,12 +264,15 @@ def _synthesize_one(
             reason=str(exc),
             candidates=len(rows),
         )
-        log("synthesize.provider_unavailable", profile=prof.name, reason=str(exc))
+        log(
+            "synthesize.provider_unavailable",
+            profile=prof.name,
+            reason=str(exc),
+            type=type(exc).__name__,
+        )
         return
 
-    selection = select_mod.select(
-        rows, prof, context_window_tokens=provider.context_window()
-    )
+    selection = select_mod.select(rows, prof, context_window_tokens=window)
     if not selection.rendered:
         _record_stub(
             conn,
@@ -250,11 +313,30 @@ def _synthesize_one(
     )
 
     if page.kept == 0:
+        # Not a brief. Every claim the model made cited an item that was not
+        # in its input, so none could be verified. An empty page with a title
+        # reads as "nothing happened"; what happened is that nothing could be
+        # checked, and the reader needs to know which.
+        _record_stub(
+            conn,
+            prof,
+            week_start=week_start,
+            now=now,
+            reason=(
+                f"The model returned {page.dropped_count} entries and every one of "
+                f"them cited an item that was not in its input, so none could be "
+                f"verified. Nothing is shown rather than an unsourced claim."
+            ),
+            candidates=len(rows),
+            provider_name=result.provider_name,
+            raw_response=result.raw_response,
+        )
         log(
             "synthesize.all_entries_dropped",
             profile=prof.name,
             dropped=page.dropped_count,
         )
+        return
 
     db.record_brief(
         conn,
@@ -295,6 +377,21 @@ def _record_stub(
     provider_name: str = "none",
     raw_response: str = "",
 ) -> None:
+    """Store a page explaining why there is no brief this week.
+
+    Refuses to overwrite a real brief already stored for this week. A later run
+    that hits a dead provider must not turn last night's good, un-sent brief
+    into an apology.
+    """
+    existing = db.get_brief(conn, prof.name, week_start)
+    if existing and not json.loads(existing["result_json"] or "{}").get("stub"):
+        log(
+            "synthesize.stub_suppressed",
+            profile=prof.name,
+            week=week_start,
+            reason="a real brief is already stored for this week; not downgrading it",
+        )
+        return
     markdown = render_mod.stub_markdown(
         prof, week_start=week_start, reason=reason, candidates=candidates
     )
@@ -335,7 +432,24 @@ def deliver(
         stored = db.get_brief(conn, prof.name, week_start)
         if stored is None:
             failures += 1
-            log("deliver.missing", profile=prof.name, week=week_start)
+            pending = [
+                r["week_start"]
+                for r in conn.execute(
+                    "SELECT week_start FROM briefs WHERE profile = ? AND sent_at IS NULL"
+                    " ORDER BY week_start DESC LIMIT 5",
+                    (prof.name,),
+                )
+            ]
+            # Naming the weeks that do exist turns "nothing for this Monday"
+            # into an actionable line. A synthesize/deliver pair that straddles
+            # UTC midnight computes two different weeks, and this is what makes
+            # that visible instead of looking like an empty week.
+            log(
+                "deliver.missing",
+                profile=prof.name,
+                week=week_start,
+                unsent_weeks=pending,
+            )
             continue
         item_count = len(json.loads(stored["input_item_ids"] or "[]"))
         try:
@@ -364,15 +478,28 @@ def deliver(
             )
             continue
 
+        # Recorded in the same block as the successful send. Outside the try,
+        # a send that worked and a mark that failed would leave sent_at NULL
+        # and the next run would mail the same brief again.
         if not dry_run:
-            db.mark_sent(conn, prof.name, week_start, now=now)
+            try:
+                db.mark_sent(conn, prof.name, week_start, now=now)
+            except Exception as exc:
+                failures += 1
+                log(
+                    "deliver.unrecorded",
+                    profile=prof.name,
+                    week=week_start,
+                    error=str(exc),
+                    note="the brief WAS sent; mark it by hand or the next run resends",
+                )
         log(
-            "deliver.ok",
+            "deliver.partial" if sent.refused else "deliver.ok",
             profile=prof.name,
             week=week_start,
             path=str(sent.path),
             recipients=len(sent.recipients),
-            refused=len(sent.refused),
+            refused=sorted(sent.refused),
             dry_run=dry_run,
             resent=sent.resent,
         )

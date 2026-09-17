@@ -232,7 +232,7 @@ def test_a_source_without_a_kind_is_refused(tmp_path):
 def test_two_profiles_sharing_a_source_produce_one_fetch(tmp_path):
     a = load(tmp_path, MINIMAL, name="a.yaml")
     b = load(tmp_path, MINIMAL.replace("name: demo", "name: other"), name="b.yaml")
-    assert fetch_plan([a, b]) == [("feed_a", {})]
+    assert fetch_plan([a, b]) == [("feed_a", {}, "feed_a")]
 
 
 def test_the_same_source_with_different_params_is_two_fetches(tmp_path):
@@ -251,6 +251,10 @@ def test_the_same_source_with_different_params_is_two_fetches(tmp_path):
     plan = fetch_plan([a, b])
     assert len(plan) == 2
     assert {p[1]["awardee"] for p in plan} == {"One", "Two"}
+    assert len({p[2] for p in plan}) == 2, (
+        "two parameter sets must store under two keys, or each profile's window "
+        "picks up the other's awards"
+    )
 
 
 def test_the_fetch_plan_is_ordered_so_a_run_is_reproducible(tmp_path):
@@ -327,3 +331,77 @@ def test_the_shipped_profile_loads(tmp_path):
     )
     assert [p.name for p in profiles] == ["isu-ai"]
     assert len(profiles[0].buckets) == 4
+
+
+# --- found by the adversarial review; each of these was a real defect --------
+
+
+def test_a_profile_with_no_subject_gets_the_real_default_not_a_descriptor(tmp_path):
+    """`slots=True` makes `Delivery.subject` a member descriptor, not a string.
+
+    Reading it as a default emailed `<member 'subject' of 'Delivery' objects>`
+    as the subject line of a real brief.
+    """
+    from brief.models import DEFAULT_SUBJECT
+
+    profile = load(tmp_path, MINIMAL)
+    assert profile.delivery.subject == DEFAULT_SUBJECT
+    assert "member" not in profile.delivery.subject
+    assert "{title}" in profile.delivery.subject
+
+
+@pytest.mark.parametrize("field", ["any_of", "none_of"])
+def test_a_keyword_list_written_as_a_bare_string_is_refused(tmp_path, field):
+    """`any_of: genome` is natural YAML and iterates to one keyword per character."""
+    text = (
+        MINIMAL.replace("  any_of: [thing]", "  any_of: genome")
+        if field == "any_of"
+        else MINIMAL.replace("  any_of: [thing]", "  any_of: [thing]\n  none_of: genome")
+    )
+    with pytest.raises(ProfileError) as caught:
+        load(tmp_path, text)
+    assert field in caught.value.field
+    assert "per character" in caught.value.problem, "the message must explain the trap"
+
+
+def test_a_blank_keyword_is_refused(tmp_path):
+    """An empty pattern matches every item, turning the filter off silently."""
+    with pytest.raises(ProfileError) as caught:
+        load(tmp_path, MINIMAL.replace('  any_of: [thing]', '  any_of: [thing, ""]'))
+    assert "blank" in caught.value.problem
+
+
+def test_two_profiles_with_the_same_name_are_refused(tmp_path):
+    """Both would run and the second would overwrite the first's stored brief."""
+    directory = tmp_path / "profiles"
+    directory.mkdir()
+    for filename in ("a.yaml", "b.yaml"):
+        (directory / filename).write_text(MINIMAL, encoding="utf-8")
+    with pytest.raises(ProfileError) as caught:
+        load_all_profiles(directory, config=CONFIG, sources=SOURCES, env={})
+    assert "duplicates" in caught.value.problem
+    assert "a.yaml" in caught.value.problem, "the message must name the other file"
+
+
+def test_a_profile_saved_as_yml_is_not_silently_ignored(tmp_path):
+    """Before this, a `.yml` profile produced no brief, no error, and no log line."""
+    directory = tmp_path / "profiles"
+    directory.mkdir()
+    (directory / "demo.yml").write_text(MINIMAL, encoding="utf-8")
+    profiles = load_all_profiles(directory, config=CONFIG, sources=SOURCES, env={})
+    assert [p.name for p in profiles] == ["demo"]
+
+
+def test_each_distinct_parameter_set_gets_its_own_storage_key(tmp_path):
+    """The contamination fix, at the planning layer."""
+    a = load(tmp_path, MINIMAL.replace("  - feed_a", '  - nsf: {awardee: "One"}'), name="a.yaml")
+    b = load(
+        tmp_path,
+        MINIMAL.replace("name: demo", "name: other").replace(
+            "  - feed_a", '  - nsf: {keyword: "two"}'
+        ),
+        name="b.yaml",
+    )
+    keys = {key for _n, _p, key in fetch_plan([a, b])}
+    assert len(keys) == 2
+    assert all(k.startswith("nsf#") for k in keys), "the name stays readable in the key"
