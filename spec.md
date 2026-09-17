@@ -63,7 +63,7 @@ title: "Maize genomics weekly"
 audience: "one PI and their lab"
 persona: "research assistant tracking a field for a principal investigator"
 sources:
-  - pubmed_search: {query: "maize[Title] AND (genome OR GWAS OR pangenome)"}   # PubMed saved-search RSS
+  - pubmed_search: {query: "maize[Title] AND (genome OR GWAS OR pangenome)"}   # NCBI E-utilities
   - biorxiv_plant_biology                                                     # subject RSS, filtered by keywords
   - nsf: {keyword: "maize genom*"}
   - nih: {advanced_text_search: "maize genome"}
@@ -134,9 +134,9 @@ inside_isu:          {kind: rss, url: "https://www.inside.iastate.edu/...", veri
 isu_research_news:   {kind: rss, url: "...", verify: true}
 isu_news_service:    {kind: rss, url: "...", verify: true}
 changedetection:     {kind: rss, url: "http://changedetection:5000/rss?token=${CD_TOKEN}"}
-biorxiv_plant_biology: {kind: rss, url: "https://connect.biorxiv.org/biorxiv_xml/plant_biology"}
+biorxiv_plant_biology: {kind: rss, url: "...", verify: true}   # the connect.biorxiv.org path in the first draft 404s
 nih_guide:           {kind: rss, url: "https://grants.nih.gov/grants/guide/newsfeed/fundingopps.xml"}
-pubmed_search:       {kind: pubmed, ...}       # builds the saved-search RSS URL from `query`
+pubmed_search:       {kind: pubmed, email: "..."}   # E-utilities esearch + esummary; NCBI asks callers to identify themselves
 nsf:                 {kind: nsf}               # awardee | keyword | pi_name set by the profile
 nih:                 {kind: nih}               # org_names | advanced_text_search set by the profile
 usaspending:         {kind: usaspending}       # recipient set by the profile
@@ -148,7 +148,7 @@ grants_gov:          {kind: grants_gov}        # category | keyword set by the p
 | Kind | Fetches | Parameters | Notes |
 | --- | --- | --- | --- |
 | `rss` | any feed, including changedetection.io's | `url` | `feedparser`; browser-like User-Agent; honors `ETag`/`Last-Modified` |
-| `pubmed` | PubMed saved-search RSS | `query` | Public, no login; the query string becomes the feed URL |
+| `pubmed` | PubMed records for a query | `query`, `email`, date window | E-utilities `esearch` + `esummary`. **Not** a saved-search RSS URL: those ids are minted server-side and cannot be built from a query. A URL PubMed gave you is an ordinary `rss` source |
 | `nsf` | NSF Award Search API | `awardee`, `keyword`, `pi_name`, date range | JSON GET; keyword search covers abstracts |
 | `nih` | NIH RePORTER API v2 | `org_names`, `advanced_text_search`, `project_start_date` | POST JSON |
 | `usaspending` | USAspending.gov | `recipient`, `time_period` | Only federal source covering NIFA; lags weeks |
@@ -380,7 +380,7 @@ topic-brief/
   profiles/
     isu-ai.yaml
   docker-compose.yml
-  .env.example
+  env.example          # dotted name is denied by this machine's permission rules
   .lib/                  # codeLibrary provenance, written by /lib-use
   brief/
     __init__.py
@@ -395,9 +395,10 @@ topic-brief/
       usaspending.py
     llm/
       __init__.py        # get_provider(config) dispatch, LLMProvider Protocol
-      cli_providers.py   # vendored: cli-llm-providers
-      ollama.py          # vendored: ollama-local-llm
-      anthropic_api.py   # optional; only if the metered provider is wanted
+      # anthropic_api.py # optional; only if the metered provider is wanted
+    vendor/              # every vendored feature, one package each, never hand-edited
+      cli_llm_providers/  ollama_local_llm/  sqlite_versioned_schema/
+      layered_config_overlay/  secret_redaction/  secret_scanner/
     select.py            # candidate selection, ranking, context packing
     synthesize.py        # prompt render, provider call, JSON extract + validate + retry
     render.py            # result_json -> markdown, citation enforcement
@@ -412,7 +413,7 @@ topic-brief/
     fixtures/            # one saved response per source; one saved raw LLM response per provider
 ```
 
-`CLAUDE.md` should be short and concrete. The points it needs to carry: the four-command contract and that the first three are idempotent; adapters return `list[Item]` and never write to the DB; profiles are data, and any change that makes a profile need code is wrong; `synthesize.py` imports only the `LLMProvider` Protocol, never a vendor SDK, and any change that breaks that is wrong; tests run against fixtures and stub binaries, never the live network or a real CLI; secrets come only from the dotenv file; the prompt template and schema live in `prompts/`, and a change to either gets a regenerated sample brief for every profile attached to the PR; vendored library code under `brief/llm/` is not edited in place, it is updated with `/lib-adopt`; no new dependencies without a one-line justification. Add the SQLite schema, the `Item` fields, and the profile schema verbatim so an agent does not have to rediscover them.
+`CLAUDE.md` should be short and concrete. The points it needs to carry: the four-command contract and that the first three are idempotent; adapters return `list[Item]` and never write to the DB; profiles are data, and any change that makes a profile need code is wrong; `synthesize.py` imports only the `LLMProvider` Protocol, never a vendor SDK, and any change that breaks that is wrong; tests run against fixtures and stub binaries, never the live network or a real CLI; secrets come only from the dotenv file; the prompt template and schema live in `prompts/`, and a change to either gets a regenerated sample brief for every profile attached to the PR; vendored library code under `brief/vendor/` is not edited in place, it is updated with `/lib-adopt`; no new dependencies without a one-line justification. Add the SQLite schema, the `Item` fields, and the profile schema verbatim so an agent does not have to rediscover them.
 
 ## Build plan
 
@@ -435,7 +436,7 @@ Acceptance test for the whole thing: pick a known ISU AI award from the past mon
 - [ ] Do the subscription terms for `claude` and `codex` permit a scheduled unattended job? Check before phase 4 widens the audience; the API provider is the clean answer if not.
 - [ ] Decide the sender address and whether the first profile needs sign-off before going to chairs; the automated-and-linked footer heads off most objections.
 - [ ] NIFA coverage via USAspending lags awards by weeks; check whether NIFA's reporting portal has a queryable feed.
-- [ ] Per-faculty sources: PubMed saved-search RSS and bioRxiv subject feeds are public and work; Google Scholar alerts are email-only and stay out of scope. Confirm the Grants.gov search API before promising funding-call coverage.
+- [x] Per-faculty sources: PubMed is reached through E-utilities, confirmed working. The bioRxiv subject-feed URL in the first draft returns 404 and needs the current path before that source is promised. Google Scholar alerts are email-only and stay out of scope. Confirm the Grants.gov search API before promising funding-call coverage.
 - [ ] Per-faculty onboarding: v1 is "the facility writes your YAML from a five-question email". A self-serve form is a later addition, and only if more than three people ask.
 - [ ] Risk: false confidence. A hallucinated dollar figure in a brief the VPR forwards costs more credibility than the tool earns. The code-enforced citation rule and the verbatim-numbers rule exist for this; keep a human skim on the first eight weeks of any new profile, and on the first four weeks after any provider change.
 - [ ] Risk: small local models. Below roughly 14B parameters, JSON compliance and citation faithfulness drop, and the citation check will silently thin the brief. Log the drop count per week; if it exceeds a quarter of entries, the profile needs a bigger model, not a better prompt.
