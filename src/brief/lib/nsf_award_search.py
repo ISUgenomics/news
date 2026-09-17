@@ -189,11 +189,16 @@ def normalize_award(raw: dict) -> dict:
     quotes a dollar figure, it never computes one.
     """
     award_id = _text(raw.get("id"))
+    # Split fields first, then pdPIName. Both are requested in PRINT_FIELDS, and
+    # a module that asks for a field it never reads loses the data silently the
+    # day the API stops sending the other one. Measured on 200 live records: all
+    # carried the split fields, so this fallback earns nothing today and costs
+    # nothing either.
     pi_name = " ".join(
         part
         for part in (_text(raw.get("piFirstName")), _text(raw.get("piLastName")))
         if part
-    )
+    ) or _text(raw.get("pdPIName"))
     return {
         "external_id": award_id,
         "url": AWARD_URL_TEMPLATE.format(id=award_id) if award_id else "",

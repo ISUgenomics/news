@@ -332,6 +332,53 @@ def items_published_between(
     return [dict(r) for r in cur.fetchall()]
 
 
+def iter_raw_records(
+    conn: sqlite3.Connection, sources: Sequence[str] | None = None
+) -> Iterable[tuple[int, str, dict[str, Any]]]:
+    """Every row that kept its raw record, as (id, source, parsed raw)."""
+    where, params = "raw_json IS NOT NULL", []
+    if sources:
+        where += f" AND source IN ({','.join('?' for _ in sources)})"
+        params = list(sources)
+    for row in conn.execute(
+        f"SELECT id, source, raw_json FROM items WHERE {where} ORDER BY id", params
+    ):
+        try:
+            yield row["id"], row["source"], json.loads(row["raw_json"])
+        except ValueError:
+            continue
+
+
+def update_derived(
+    conn: sqlite3.Connection,
+    updates: Iterable[tuple[int, dict[str, str] | None, str | None]],
+) -> int:
+    """Rewrite facts and published_at for rows whose derived values changed.
+
+    Neither column feeds ``content_hash``, so this cannot create a duplicate row
+    and cannot change what dedup considers the same item. It exists because a
+    derived field is a pure function of ``raw_json``, which is already stored —
+    adding one should not mean refetching a thousand records from an API.
+    """
+    changed = 0
+    for item_id, facts, published_at in updates:
+        cur = conn.execute(
+            "UPDATE items SET facts_json = ?, published_at = COALESCE(?, published_at)"
+            " WHERE id = ?"
+            "   AND (IFNULL(facts_json,'') IS NOT ? OR IFNULL(published_at,'') IS NOT ?)",
+            (
+                json.dumps(facts, default=str) if facts else None,
+                published_at,
+                item_id,
+                json.dumps(facts, default=str) if facts else "",
+                published_at if published_at is not None else "",
+            ),
+        )
+        changed += cur.rowcount if cur.rowcount > 0 else 0
+    conn.commit()
+    return changed
+
+
 def brief_weeks(
     conn: sqlite3.Connection, profile: str, *, include_stubs: bool = False
 ) -> list[str]:

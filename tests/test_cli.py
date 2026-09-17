@@ -805,3 +805,110 @@ def test_backfill_force_still_refuses_a_delivered_week(tmp_path, stub_http):
     conn = db.connect(root / "data" / "items.db")
     assert db.get_brief(conn, "good", "2026-08-10")["markdown"] == "# delivered"
     conn.close()
+
+
+# --- reindex ----------------------------------------------------------------
+
+
+def _award_project(tmp_path, stub_http):
+    root = project(tmp_path, stub_http.url + "/feed")
+    conn = db.connect(root / "data" / "items.db")
+    db.upsert_items(
+        conn,
+        [
+            Item(
+                source="nsf", url="https://x/1", title="An award", body="abstract",
+                published_at="2026-09-01",
+                raw={"id": "1", "title": "An award", "piFirstName": "Ada", "piLastName": "Lovelace",
+                     "fundsObligatedAmt": "500000", "awardeeName": "A University",
+                     "date": "09/01/2026", "abstractText": "abstract"},
+            )
+        ],
+        now=NOW,
+        source_key="nsf#aaaa",
+    )
+    conn.close()
+    return root
+
+
+def test_reindex_rebuilds_derived_fields_without_a_network_call(tmp_path, stub_http):
+    """The whole point: facts are a pure function of raw_json, already stored."""
+    root = _award_project(tmp_path, stub_http)
+    conn = db.connect(root / "data" / "items.db")
+    conn.execute("UPDATE items SET facts_json = NULL")
+    conn.commit()
+    conn.close()
+
+    before = len(stub_http.requests)
+    result = runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    assert [e for e in events(result) if e["event"] == "reindex.done"][0]["changed"] == 1
+    assert len(stub_http.requests) == before, "reindex must not touch the network"
+
+    conn = db.connect(root / "data" / "items.db")
+    facts = json.loads(conn.execute("SELECT facts_json FROM items").fetchone()["facts_json"])
+    assert facts["PI"] == "Ada Lovelace"
+    assert facts["Amount"] == "500000"
+    conn.close()
+
+
+def test_reindex_creates_no_rows_and_changes_no_hashes(tmp_path, stub_http):
+    """Neither derived column feeds content_hash, so dedup is untouched."""
+    root = _award_project(tmp_path, stub_http)
+    conn = db.connect(root / "data" / "items.db")
+    before = conn.execute("SELECT COUNT(*), GROUP_CONCAT(content_hash) FROM items").fetchone()
+    conn.close()
+
+    runner.invoke(cli.app, ["reindex", "--root", str(root)])
+
+    conn = db.connect(root / "data" / "items.db")
+    after = conn.execute("SELECT COUNT(*), GROUP_CONCAT(content_hash) FROM items").fetchone()
+    assert tuple(after) == tuple(before)
+    conn.close()
+
+
+def test_reindex_is_idempotent(tmp_path, stub_http):
+    root = _award_project(tmp_path, stub_http)
+    runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    second = runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    assert [e for e in events(second) if e["event"] == "reindex.done"][0]["changed"] == 0, (
+        "nothing changed, so nothing should be rewritten"
+    )
+
+
+def test_reindex_leaves_feed_rows_alone(tmp_path, stub_http):
+    """A feed entry has no raw record; guessing would be worse than skipping."""
+    root = _award_project(tmp_path, stub_http)
+    conn = db.connect(root / "data" / "items.db")
+    db.upsert_items(
+        conn, [Item(source="feed_a", url="https://x/feed", title="A story", body="b")],
+        now=NOW, source_key="feed_a",
+    )
+    conn.close()
+
+    result = runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    assert [e for e in events(result) if e["event"] == "reindex.done"][0]["examined"] == 1
+
+
+def test_a_dry_run_counts_without_writing(tmp_path, stub_http):
+    root = _award_project(tmp_path, stub_http)
+    conn = db.connect(root / "data" / "items.db")
+    conn.execute("UPDATE items SET facts_json = NULL")
+    conn.commit()
+    conn.close()
+
+    result = runner.invoke(cli.app, ["reindex", "--root", str(root), "--dry-run"])
+    assert [e for e in events(result) if e["event"] == "reindex.plan"][0]["candidates"] == 1
+
+    conn = db.connect(root / "data" / "items.db")
+    assert conn.execute("SELECT facts_json FROM items").fetchone()["facts_json"] is None
+    conn.close()
+
+
+def test_an_unreadable_raw_record_is_reported_not_fatal(tmp_path, stub_http):
+    root = _award_project(tmp_path, stub_http)
+    conn = db.connect(root / "data" / "items.db")
+    conn.execute("UPDATE items SET raw_json = 'not json'")
+    conn.commit()
+    conn.close()
+    result = runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    assert result.exit_code == 0, "one bad row must not stop the rebuild"

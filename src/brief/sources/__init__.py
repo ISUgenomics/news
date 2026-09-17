@@ -46,6 +46,38 @@ def supports_history(kind: str) -> bool:
     return bool(getattr(module, "SUPPORTS_HISTORY", False))
 
 
+#: How to recompute an item's derived fields from the raw record a source
+#: returned. Each entry re-runs the seed's own normalizer and the adapter's own
+#: facts mapping, so reindex cannot drift from ingest: they call the same code.
+def rederive(source: str, raw: dict) -> tuple[dict[str, str] | None, str | None]:
+    """Return ``(facts, published_at)`` recomputed from a stored raw record.
+
+    Returns ``(None, None)`` for a source with no normalizer — a feed entry has
+    no raw record to re-derive from, and guessing would be worse than leaving it.
+    """
+    if source == "nsf":
+        from brief.lib.nsf_award_search import normalize_award
+
+        record = normalize_award(raw)
+        return nsf._facts(record), record.get("published_at")
+    if source == "nih":
+        from brief.lib.nih_reporter_search import normalize_project
+
+        record = normalize_project(raw)
+        return nih._facts(record), record.get("published_at")
+    if source == "usaspending":
+        from brief.lib.usaspending_award_search import normalize_award
+
+        record = normalize_award(raw, award_type_group="grants")
+        return usaspending._facts(record), record.get("published_at")
+    if source.startswith("pubmed"):
+        from brief.lib.pubmed_search import record_to_item
+
+        record = record_to_item(raw)
+        return pubmed._facts(record), record.get("published_at")
+    return None, None
+
+
 class UnknownSourceKind(ValueError):
     """`sources.yaml` names an adapter that does not exist."""
 
@@ -81,4 +113,4 @@ def fetch(
     return adapter(source_name, merged, since=since, now=now), {}
 
 
-__all__ = ["ADAPTERS", "Item", "UnknownSourceKind", "fetch", "money", "supports_history"]
+__all__ = ["ADAPTERS", "Item", "UnknownSourceKind", "fetch", "money", "rederive", "supports_history"]

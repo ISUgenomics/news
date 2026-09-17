@@ -985,3 +985,20 @@ def test_without_an_awardee_every_record_is_kept(nsf_stub):
         base_url=nsf_stub.url + "/awards.json",
     )
     assert [a["title"] for a in got] == ["A", "B"]
+
+
+def test_the_pi_falls_back_to_the_combined_name_field():
+    """PRINT_FIELDS requests pdPIName; a module that never reads it loses data
+    silently the day the API stops sending the split fields."""
+    assert ns.normalize_award({"id": "1", "pdPIName": "Ada Lovelace"})["pi_name"] == "Ada Lovelace"
+
+
+def test_the_split_fields_win_when_both_are_present():
+    got = ns.normalize_award(
+        {"id": "1", "piFirstName": "Grace", "piLastName": "Hopper", "pdPIName": "Someone Else"}
+    )
+    assert got["pi_name"] == "Grace Hopper"
+
+
+def test_no_pi_anywhere_is_an_empty_string_not_a_guess():
+    assert ns.normalize_award({"id": "1"})["pi_name"] == ""

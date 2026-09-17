@@ -42,7 +42,7 @@ from brief.profile import (
     load_yaml,
 )
 from brief.sources import fetch as fetch_source
-from brief.sources import supports_history
+from brief.sources import rederive, supports_history
 
 app = typer.Typer(add_completion=False, help="Weekly topic briefs from public sources.")
 
@@ -719,6 +719,50 @@ def deliver(
 def _archive_only(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
     """The `--dry-run` send: writes the archive, opens no socket."""
     return {}
+
+
+@app.command()
+def reindex(
+    root: Path = typer.Option(ROOT),
+    source: str | None = typer.Option(None, help="Only this source"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Count what would change"),
+) -> None:
+    """Recompute derived fields from the raw records already stored.
+
+    Offline. No network, no API calls, no new rows. `facts` and `published_at`
+    are pure functions of `raw_json`, which every award row keeps, so adding a
+    field or correcting a date mapping should not mean refetching a thousand
+    records from an agency.
+
+    Neither column feeds `content_hash`, so this cannot create a duplicate or
+    change what dedup treats as the same item. It re-runs the seeds' own
+    normalizers and the adapters' own facts mappings, so a reindex cannot drift
+    from an ingest: they are the same code.
+
+    Sources with no raw record — feeds — are left alone rather than guessed at.
+    """
+    config, _sources, _profiles = load_world(root)
+    conn = db.connect(root / (str(config.get("db") or "data/items.db")))
+
+    updates: list[tuple[int, dict[str, str] | None, str | None]] = []
+    skipped = 0
+    for item_id, src, raw in db.iter_raw_records(conn, [source] if source else None):
+        try:
+            facts, published_at = rederive(src, raw)
+        except Exception as exc:
+            skipped += 1
+            log("reindex.error", item=item_id, source=src, error=str(exc))
+            continue
+        if facts is None and published_at is None:
+            continue
+        updates.append((item_id, facts, published_at))
+
+    if dry_run:
+        log("reindex.plan", candidates=len(updates), unreadable=skipped)
+        return
+
+    changed = db.update_derived(conn, updates)
+    log("reindex.done", examined=len(updates), changed=changed, unreadable=skipped)
 
 
 @app.command()

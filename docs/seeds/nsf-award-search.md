@@ -90,6 +90,15 @@ still explicit parameters with `today` injectable, so goldens stay deterministic
 `dateStart`/`dateEnd` still filter on the award's *effective* date, not the project start
 date. `amount` is still the JSON value verbatim, never parsed.
 
+## Boundary note, 2026-09-17: the PI fallback
+
+`pi_name` is built from `piFirstName` + `piLastName`, falling back to `pdPIName`. The
+fallback was added after noticing the module requested `pdPIName` in `PRINT_FIELDS`,
+named it in its docstring, and never read it — the same shape of trap as the USAspending
+mapping that read `Base Obligation Date` without requesting it. Measured on 200 live
+records, all carried the split fields, so this earns nothing today; it costs nothing and
+removes a silent-loss path if the API changes which form it sends.
+
 ## Test harness
 stub_http
 
