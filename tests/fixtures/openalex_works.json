@@ -1,0 +1,2447 @@
+{
+ "meta": {
+  "count": 153,
+  "per_page": 4,
+  "next_cursor": null
+ },
+ "results": [
+  {
+   "id": "https://openalex.org/W4411462628",
+   "doi": "https://doi.org/10.1128/spectrum.02643-25",
+   "title": "Porcine epidemic diarrhea virus infection promotes Peyer’s patch immune induction and epithelial defense via single-cell transcriptional reprogramming",
+   "display_name": "Porcine epidemic diarrhea virus infection promotes Peyer’s patch immune induction and epithelial defense via single-cell transcriptional reprogramming",
+   "publication_date": "2026-09-02",
+   "publication_year": 2026,
+   "type": "article",
+   "language": "en",
+   "primary_location": {
+    "id": "doi:10.1128/spectrum.02643-25",
+    "is_oa": true,
+    "landing_page_url": "https://doi.org/10.1128/spectrum.02643-25",
+    "pdf_url": null,
+    "source": {
+     "id": "https://openalex.org/S2764766708",
+     "display_name": "Microbiology Spectrum",
+     "issn_l": "2165-0497",
+     "issn": [
+      "2165-0497"
+     ],
+     "is_oa": true,
+     "is_in_doaj": true,
+     "is_core": true,
+     "host_organization": "https://openalex.org/P4310320263",
+     "host_organization_name": "American Society for Microbiology",
+     "host_organization_lineage": [
+      "https://openalex.org/P4310320263"
+     ],
+     "host_organization_lineage_names": [
+      "American Society for Microbiology"
+     ],
+     "type": "journal"
+    },
+    "license": "cc-by",
+    "license_id": "https://openalex.org/licenses/cc-by",
+    "version": "publishedVersion",
+    "is_accepted": true,
+    "is_published": true,
+    "raw_source_name": "Microbiology Spectrum",
+    "raw_type": "journal-article"
+   },
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {
+      "id": "https://openalex.org/A5045187716",
+      "display_name": "Jayne E Wiarda"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I4210142913",
+       "display_name": "National Animal Disease Center"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5003927441",
+      "display_name": "Bailey Arruda"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I4210142913",
+       "display_name": "National Animal Disease Center"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5025422327",
+      "display_name": "Eraldo Lourenso Zanella"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I1281378812",
+       "display_name": "Oak Ridge Associated Universities"
+      },
+      {
+       "id": "https://openalex.org/I1312222531",
+       "display_name": "Agricultural Research Service"
+      },
+      {
+       "id": "https://openalex.org/I4210142913",
+       "display_name": "National Animal Disease Center"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5100722341",
+      "display_name": "Hanjun Kim"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I1281378812",
+       "display_name": "Oak Ridge Associated Universities"
+      },
+      {
+       "id": "https://openalex.org/I1312222531",
+       "display_name": "Agricultural Research Service"
+      },
+      {
+       "id": "https://openalex.org/I4210142913",
+       "display_name": "National Animal Disease Center"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5027264261",
+      "display_name": "Samantha J. Hau"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I4210142913",
+       "display_name": "National Animal Disease Center"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5100718734",
+      "display_name": "Jianqiang Zhang"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      }
+     ]
+    }
+   ],
+   "abstract_inverted_index": {
+    "Porcine": [
+     0,
+     236
+    ],
+    "epidemic": [
+     1,
+     237
+    ],
+    "diarrhea": [
+     2,
+     238
+    ],
+    "virus": [
+     3,
+     239
+    ],
+    "(PEDV)": [
+     4,
+     240
+    ],
+    "is": [
+     5,
+     34,
+     185,
+     274
+    ],
+    "an": [
+     6
+    ],
+    "enteric": [
+     7
+    ],
+    "coronavirus": [
+     8
+    ],
+    "causing": [
+     9
+    ],
+    "gastrointestinal": [
+     10
+    ],
+    "disease": [
+     11
+    ],
+    "in": [
+     12,
+     48,
+     65,
+     130,
+     210,
+     245,
+     251,
+     321,
+     336
+    ],
+    "swine.": [
+     13
+    ],
+    "To": [
+     14
+    ],
+    "mitigate": [
+     15
+    ],
+    "PEDV": [
+     16,
+     46,
+     68,
+     122,
+     140,
+     157,
+     219,
+     225,
+     260,
+     265,
+     292,
+     317,
+     339
+    ],
+    "risks": [
+     17
+    ],
+    "to": [
+     18,
+     45,
+     107,
+     156,
+     172,
+     229,
+     301
+    ],
+    "swine": [
+     19
+    ],
+    "health,": [
+     20,
+     349
+    ],
+    "agricultural": [
+     21,
+     350
+    ],
+    "economic": [
+     22,
+     351
+    ],
+    "losses,": [
+     23
+    ],
+    "and": [
+     24,
+     61,
+     77,
+     100,
+     142,
+     176,
+     201,
+     248,
+     256,
+     268,
+     280,
+     306,
+     312,
+     325,
+     341,
+     353
+    ],
+    "global": [
+     25,
+     354
+    ],
+    "food": [
+     26,
+     355
+    ],
+    "security,": [
+     27
+    ],
+    "a": [
+     28,
+     143,
+     152,
+     322
+    ],
+    "better": [
+     29,
+     278
+    ],
+    "understanding": [
+     30,
+     214
+    ],
+    "of": [
+     31,
+     52,
+     59,
+     88,
+     115,
+     127,
+     147,
+     160,
+     190,
+     198,
+     215,
+     224
+    ],
+    "host-pathogen": [
+     32,
+     216
+    ],
+    "interactions": [
+     33,
+     217
+    ],
+    "required.": [
+     35
+    ],
+    "Using": [
+     36
+    ],
+    "single-cell": [
+     37
+    ],
+    "RNA": [
+     38
+    ],
+    "sequencing,": [
+     39
+    ],
+    "we": [
+     40
+    ],
+    "studied": [
+     41
+    ],
+    "transcriptional": [
+     42,
+     86,
+     125,
+     183
+    ],
+    "cellular": [
+     43
+    ],
+    "responses": [
+     44,
+     311
+    ],
+    "infection": [
+     47,
+     69,
+     165,
+     220,
+     273,
+     302
+    ],
+    "two": [
+     49
+    ],
+    "anatomical": [
+     50
+    ],
+    "compartments": [
+     51
+    ],
+    "the": [
+     53,
+     136,
+     173,
+     211
+    ],
+    "intestinal": [
+     54,
+     192,
+     287,
+     298
+    ],
+    "jejunum:": [
+     55
+    ],
+    "first-line": [
+     56
+    ],
+    "barrier": [
+     57,
+     314
+    ],
+    "defenses": [
+     58,
+     315
+    ],
+    "epithelia": [
+     60,
+     202
+    ],
+    "underlying": [
+     62
+    ],
+    "immune": [
+     63,
+     128,
+     149,
+     310
+    ],
+    "induction": [
+     64,
+     129
+    ],
+    "Peyer's": [
+     66,
+     131,
+     199
+    ],
+    "patches.": [
+     67,
+     132
+    ],
+    "altered": [
+     70
+    ],
+    "gene": [
+     71
+    ],
+    "expression": [
+     72
+    ],
+    "across": [
+     73,
+     187
+    ],
+    "all": [
+     74,
+     297
+    ],
+    "cell": [
+     75,
+     90,
+     119
+    ],
+    "types": [
+     76
+    ],
+    "was": [
+     78,
+     170
+    ],
+    "associated": [
+     79,
+     112
+    ],
+    "with": [
+     80,
+     113,
+     178
+    ],
+    "antiviral": [
+     81,
+     148,
+     182,
+     208,
+     327
+    ],
+    "response": [
+     82,
+     155
+    ],
+    "pathways,": [
+     83
+    ],
+    "indicating": [
+     84,
+     124,
+     181
+    ],
+    "coordinated": [
+     85,
+     207,
+     324
+    ],
+    "reprogramming": [
+     87,
+     184
+    ],
+    "diverse": [
+     89,
+     304
+    ],
+    "types.": [
+     91
+    ],
+    "Signaling": [
+     92
+    ],
+    "network": [
+     93
+    ],
+    "inferences": [
+     94
+    ],
+    "showed": [
+     95
+    ],
+    "that": [
+     96,
+     296,
+     332,
+     344
+    ],
+    "macrophages,": [
+     97
+    ],
+    "dendritic": [
+     98
+    ],
+    "cells,": [
+     99
+    ],
+    "non-resting": [
+     101
+    ],
+    "B": [
+     102,
+     118
+    ],
+    "cells": [
+     103,
+     111,
+     270,
+     288,
+     299
+    ],
+    "had": [
+     104
+    ],
+    "increased": [
+     105
+    ],
+    "signaling": [
+     106
+    ],
+    "T": [
+     108,
+     116
+    ],
+    "follicular": [
+     109
+    ],
+    "helper": [
+     110
+    ],
+    "processes": [
+     114
+    ],
+    "cell-dependent": [
+     117
+    ],
+    "activation": [
+     120
+    ],
+    "during": [
+     121,
+     218
+    ],
+    "infection,": [
+     123,
+     141,
+     158
+    ],
+    "promotion": [
+     126
+    ],
+    "Mature": [
+     133
+    ],
+    "enterocytes": [
+     134,
+     189
+    ],
+    "were": [
+     135,
+     318
+    ],
+    "primary": [
+     137
+    ],
+    "targets": [
+     138,
+     331
+    ],
+    "for": [
+     139,
+     206,
+     231,
+     259,
+     276
+    ],
+    "190-gene": [
+     144,
+     168
+    ],
+    "signature": [
+     145,
+     169
+    ],
+    "indicative": [
+     146
+    ],
+    "defense": [
+     150
+    ],
+    "represented": [
+     151
+    ],
+    "conserved": [
+     153,
+     326
+    ],
+    "enterocyte": [
+     154,
+     161,
+     179
+    ],
+    "regardless": [
+     159
+    ],
+    "stress": [
+     162
+    ],
+    "state": [
+     163
+    ],
+    "or": [
+     164
+    ],
+    "status.": [
+     166
+    ],
+    "The": [
+     167
+    ],
+    "specific": [
+     171
+    ],
+    "epithelial": [
+     174,
+     313
+    ],
+    "lineage": [
+     175
+    ],
+    "escalated": [
+     177
+    ],
+    "maturation,": [
+     180
+    ],
+    "mobilized": [
+     186
+    ],
+    "matured": [
+     188
+    ],
+    "PEDV-infected": [
+     191
+    ],
+    "segments.": [
+     193
+    ],
+    "Results": [
+     194,
+     329
+    ],
+    "exemplify": [
+     195
+    ],
+    "key": [
+     196
+    ],
+    "roles": [
+     197
+    ],
+    "patches": [
+     200
+    ],
+    "as": [
+     203
+    ],
+    "integral": [
+     204
+    ],
+    "components": [
+     205
+    ],
+    "responsiveness": [
+     209
+    ],
+    "intestine.": [
+     212
+    ],
+    "Improved": [
+     213
+    ],
+    "can": [
+     221,
+     271
+    ],
+    "identify": [
+     222,
+     330
+    ],
+    "indicators": [
+     223
+    ],
+    "protection": [
+     226
+    ],
+    "versus": [
+     227
+    ],
+    "susceptibility": [
+     228
+    ],
+    "target": [
+     230
+    ],
+    "future": [
+     232
+    ],
+    "intervention": [
+     233
+    ],
+    "strategies.": [
+     234,
+     282
+    ],
+    "IMPORTANCE:": [
+     235
+    ],
+    "causes": [
+     241
+    ],
+    "high": [
+     242
+    ],
+    "death": [
+     243
+    ],
+    "rates": [
+     244
+    ],
+    "young": [
+     246
+    ],
+    "pigs": [
+     247,
+     267
+    ],
+    "production": [
+     249
+    ],
+    "losses": [
+     250
+    ],
+    "older": [
+     252
+    ],
+    "animals,": [
+     253
+    ],
+    "yet": [
+     254
+    ],
+    "prevention": [
+     255,
+     279,
+     340
+    ],
+    "treatment": [
+     257,
+     281
+    ],
+    "options": [
+     258
+    ],
+    "remain": [
+     261
+    ],
+    "limited.": [
+     262
+    ],
+    "Understanding": [
+     263
+    ],
+    "how": [
+     264,
+     269,
+     286
+    ],
+    "infects": [
+     266
+    ],
+    "control": [
+     272,
+     342
+    ],
+    "crucial": [
+     275
+    ],
+    "developing": [
+     277,
+     337
+    ],
+    "Our": [
+     283
+    ],
+    "work": [
+     284
+    ],
+    "explores": [
+     285
+    ],
+    "are": [
+     289
+    ],
+    "impacted": [
+     290
+    ],
+    "by": [
+     291
+    ],
+    "infection.": [
+     293
+    ],
+    "We": [
+     294
+    ],
+    "find": [
+     295
+    ],
+    "responded": [
+     300
+    ],
+    "despite": [
+     303
+    ],
+    "origins": [
+     305
+    ],
+    "functions.": [
+     307
+    ],
+    "Processes": [
+     308
+    ],
+    "promoting": [
+     309
+    ],
+    "against": [
+     316
+    ],
+    "initiated,": [
+     319
+    ],
+    "culminating": [
+     320
+    ],
+    "highly": [
+     323
+    ],
+    "response.": [
+     328
+    ],
+    "may": [
+     333
+    ],
+    "be": [
+     334
+    ],
+    "useful": [
+     335
+    ],
+    "new": [
+     338
+    ],
+    "strategies": [
+     343
+    ],
+    "could": [
+     345
+    ],
+    "positively": [
+     346
+    ],
+    "impact": [
+     347
+    ],
+    "animal": [
+     348
+    ],
+    "prosperity,": [
+     352
+    ],
+    "security.": [
+     356
+    ]
+   },
+   "ids": {
+    "openalex": "https://openalex.org/W4411462628",
+    "doi": "https://doi.org/10.1128/spectrum.02643-25",
+    "pmid": "https://pubmed.ncbi.nlm.nih.gov/42684955"
+   }
+  },
+  {
+   "id": "https://openalex.org/W4415111015",
+   "doi": "https://doi.org/10.3390/s26185696",
+   "title": "OSI Stack Redesign for Quantum Networks: Requirements, Technologies, Challenges, and Future Directions",
+   "display_name": "OSI Stack Redesign for Quantum Networks: Requirements, Technologies, Challenges, and Future Directions",
+   "publication_date": "2026-09-08",
+   "publication_year": 2026,
+   "type": "article",
+   "language": "en",
+   "primary_location": {
+    "id": "doi:10.3390/s26185696",
+    "is_oa": true,
+    "landing_page_url": "https://doi.org/10.3390/s26185696",
+    "pdf_url": null,
+    "source": {
+     "id": "https://openalex.org/S101949793",
+     "display_name": "Sensors",
+     "issn_l": "1424-8220",
+     "issn": [
+      "1424-8220"
+     ],
+     "is_oa": true,
+     "is_in_doaj": true,
+     "is_core": true,
+     "host_organization": "https://openalex.org/P4310310987",
+     "host_organization_name": "Multidisciplinary Digital Publishing Institute",
+     "host_organization_lineage": [
+      "https://openalex.org/P4310310987"
+     ],
+     "host_organization_lineage_names": [
+      "Multidisciplinary Digital Publishing Institute"
+     ],
+     "type": "journal"
+    },
+    "license": "cc-by",
+    "license_id": "https://openalex.org/licenses/cc-by",
+    "version": "publishedVersion",
+    "is_accepted": true,
+    "is_published": true,
+    "raw_source_name": "Sensors",
+    "raw_type": "journal-article"
+   },
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {
+      "id": "https://openalex.org/A5053387437",
+      "display_name": "Shakil Ahmed"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      },
+      {
+       "id": "https://openalex.org/I8606887",
+       "display_name": "Grand Valley State University"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5140331757",
+      "display_name": "Yehia Osman"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5150871843",
+      "display_name": "Luke Cue"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5135965200",
+      "display_name": "Ibrahim Almazyad"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I156216236",
+       "display_name": "Qassim University"
+      },
+      {
+       "id": "https://openalex.org/I4210092650",
+       "display_name": "Buraydah Colleges"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5089704874",
+      "display_name": "Nasser Albalawi"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I118590987",
+       "display_name": "Northern Border University"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5101351959",
+      "display_name": "Muhammad Kamran Saeed"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      }
+     ]
+    }
+   ],
+   "abstract_inverted_index": {
+    "Quantum": [
+     0,
+     84,
+     128,
+     131,
+     225
+    ],
+    "communication": [
+     1
+    ],
+    "is": [
+     2,
+     33,
+     184,
+     207
+    ],
+    "emerging": [
+     3
+    ],
+    "as": [
+     4,
+     39,
+     141,
+     176
+    ],
+    "a": [
+     5,
+     66,
+     154,
+     208,
+     286
+    ],
+    "foundation": [
+     6
+    ],
+    "for": [
+     7,
+     29,
+     55,
+     87,
+     190,
+     228
+    ],
+    "next-generation": [
+     8
+    ],
+    "networks,": [
+     9
+    ],
+    "offering": [
+     10
+    ],
+    "unprecedented": [
+     11
+    ],
+    "capabilities": [
+     12
+    ],
+    "in": [
+     13,
+     58
+    ],
+    "security,": [
+     14
+    ],
+    "entanglement-based": [
+     15
+    ],
+    "connectivity,": [
+     16
+    ],
+    "and": [
+     17,
+     43,
+     50,
+     92,
+     94,
+     105,
+     118,
+     134,
+     137,
+     147,
+     159,
+     166,
+     181,
+     195,
+     201,
+     233,
+     235,
+     245,
+     269,
+     284,
+     296
+    ],
+    "distributed": [
+     18
+    ],
+    "computation.": [
+     19
+    ],
+    "However,": [
+     20
+    ],
+    "the": [
+     21,
+     44,
+     52,
+     59,
+     72,
+     83,
+     98,
+     214,
+     224,
+     238,
+     252,
+     304,
+     312
+    ],
+    "classical": [
+     22,
+     73,
+     215
+    ],
+    "Open": [
+     23
+    ],
+    "Systems": [
+     24
+    ],
+    "Interconnection": [
+     25
+    ],
+    "(OSI)": [
+     26
+    ],
+    "model,": [
+     27
+    ],
+    "designed": [
+     28
+    ],
+    "deterministic,": [
+     30
+    ],
+    "error-tolerant": [
+     31
+    ],
+    "systems,": [
+     32
+    ],
+    "incompatible": [
+     34
+    ],
+    "with": [
+     35,
+     76,
+     172,
+     187,
+     218,
+     303
+    ],
+    "quantum": [
+     36,
+     56,
+     143,
+     145,
+     197,
+     273,
+     275
+    ],
+    "phenomena": [
+     37
+    ],
+    "such": [
+     38,
+     140,
+     175
+    ],
+    "decoherence,": [
+     40
+    ],
+    "probabilistic": [
+     41
+    ],
+    "entanglement,": [
+     42
+    ],
+    "no-cloning": [
+     45
+    ],
+    "theorem.": [
+     46
+    ],
+    "This": [
+     47,
+     299
+    ],
+    "paper": [
+     48
+    ],
+    "surveys": [
+     49
+    ],
+    "redefines": [
+     51
+    ],
+    "OSI": [
+     53,
+     68,
+     123,
+     210,
+     261
+    ],
+    "model": [
+     54,
+     75,
+     217
+    ],
+    "networking": [
+     57
+    ],
+    "context": [
+     60
+    ],
+    "of": [
+     61,
+     156,
+     204,
+     307
+    ],
+    "7G": [
+     62
+    ],
+    "systems.": [
+     63,
+     150
+    ],
+    "We": [
+     64,
+     151
+    ],
+    "propose": [
+     65
+    ],
+    "Quantum-Converged": [
+     67,
+     209
+    ],
+    "stack": [
+     69,
+     211
+    ],
+    "by": [
+     70,
+     122,
+     260
+    ],
+    "extending": [
+     71
+    ],
+    "seven-layer": [
+     74,
+     216
+    ],
+    "two": [
+     77,
+     219
+    ],
+    "additional": [
+     78,
+     220
+    ],
+    "layers:": [
+     79,
+     221
+    ],
+    "(i)": [
+     80
+    ],
+    "Layer": [
+     81,
+     96,
+     222,
+     236
+    ],
+    "0,": [
+     82,
+     223
+    ],
+    "Substrate,": [
+     85,
+     226
+    ],
+    "responsible": [
+     86,
+     227
+    ],
+    "entanglement": [
+     88,
+     182,
+     229,
+     297
+    ],
+    "management,": [
+     89,
+     230
+    ],
+    "coherence": [
+     90,
+     179,
+     231,
+     294
+    ],
+    "preservation,": [
+     91,
+     232
+    ],
+    "teleportation;": [
+     93,
+     234
+    ],
+    "(ii)": [
+     95
+    ],
+    "8,": [
+     97,
+     237
+    ],
+    "Cognitive": [
+     99,
+     239
+    ],
+    "Intent": [
+     100,
+     240
+    ],
+    "Plane,": [
+     101,
+     241
+    ],
+    "which": [
+     102,
+     242
+    ],
+    "enables": [
+     103,
+     243
+    ],
+    "AI-": [
+     104,
+     244
+    ],
+    "QML-driven": [
+     106,
+     246
+    ],
+    "orchestration.": [
+     107,
+     247
+    ],
+    "The": [
+     108,
+     199
+    ],
+    "survey": [
+     109,
+     317
+    ],
+    "synthesizes": [
+     110
+    ],
+    "over": [
+     111,
+     256
+    ],
+    "150": [
+     112,
+     257
+    ],
+    "research": [
+     113,
+     258
+    ],
+    "works": [
+     114,
+     259
+    ],
+    "published": [
+     115
+    ],
+    "between": [
+     116
+    ],
+    "2018": [
+     117
+    ],
+    "2025,": [
+     119
+    ],
+    "classifying": [
+     120
+    ],
+    "them": [
+     121
+    ],
+    "layer,": [
+     124,
+     262
+    ],
+    "enabling": [
+     125,
+     264
+    ],
+    "technologies": [
+     126,
+     265
+    ],
+    "(e.g.,": [
+     127
+    ],
+    "Key": [
+     129
+    ],
+    "Distribution,": [
+     130
+    ],
+    "Error": [
+     132
+    ],
+    "Correction,": [
+     133
+    ],
+    "Post-Quantum": [
+     135
+    ],
+    "Cryptography),": [
+     136
+    ],
+    "application": [
+     138,
+     270
+    ],
+    "domains": [
+     139,
+     271
+    ],
+    "satellite": [
+     142
+    ],
+    "links,": [
+     144,
+     274
+    ],
+    "IoT,": [
+     146,
+     276
+    ],
+    "federated": [
+     148,
+     277
+    ],
+    "edge": [
+     149,
+     278
+    ],
+    "further": [
+     152
+    ],
+    "provide": [
+     153
+    ],
+    "taxonomy": [
+     155
+    ],
+    "cross-layer": [
+     157,
+     308
+    ],
+    "enablers": [
+     158
+    ],
+    "discuss": [
+     160
+    ],
+    "simulation": [
+     161
+    ],
+    "tools,": [
+     162
+    ],
+    "including": [
+     163
+    ],
+    "NetSquid,": [
+     164
+    ],
+    "QuNetSim,": [
+     165
+    ],
+    "QuISP.": [
+     167
+    ],
+    "Finally,": [
+     168
+    ],
+    "an": [
+     169
+    ],
+    "evaluation": [
+     170,
+     288
+    ],
+    "framework": [
+     171,
+     254,
+     289
+    ],
+    "quantum-native": [
+     173,
+     287,
+     309
+    ],
+    "metrics,": [
+     174,
+     310
+    ],
+    "entropy": [
+     177,
+     292
+    ],
+    "throughput,": [
+     178,
+     293
+    ],
+    "latency,": [
+     180,
+     295
+    ],
+    "fidelity,": [
+     183
+    ],
+    "introduced,": [
+     185
+    ],
+    "along": [
+     186
+    ],
+    "open": [
+     188
+    ],
+    "challenges": [
+     189
+    ],
+    "programmable": [
+     191
+    ],
+    "stacks,": [
+     192
+    ],
+    "digital": [
+     193
+    ],
+    "twins,": [
+     194
+    ],
+    "AI-defined": [
+     196
+    ],
+    "agents.": [
+     198
+    ],
+    "specific": [
+     200
+    ],
+    "novel": [
+     202
+    ],
+    "contribution": [
+     203
+    ],
+    "this": [
+     205,
+     316
+    ],
+    "work": [
+     206
+    ],
+    "that": [
+     212
+    ],
+    "extends": [
+     213
+    ],
+    "Unlike": [
+     248
+    ],
+    "prior": [
+     249
+    ],
+    "technology-centric": [
+     250
+    ],
+    "surveys,": [
+     251
+    ],
+    "proposed": [
+     253
+    ],
+    "classifies": [
+     255
+    ],
+    "maps": [
+     263
+    ],
+    "(QKD,": [
+     266
+    ],
+    "QEC,": [
+     267
+    ],
+    "PQC)": [
+     268
+    ],
+    "(satellite": [
+     272
+    ],
+    "systems)": [
+     279
+    ],
+    "to": [
+     280
+    ],
+    "their": [
+     281
+    ],
+    "functional": [
+     282
+    ],
+    "layers,": [
+     283
+    ],
+    "introduces": [
+     285
+    ],
+    "based": [
+     290
+    ],
+    "on": [
+     291
+    ],
+    "fidelity.": [
+     298
+    ],
+    "layer-resolved": [
+     300
+    ],
+    "synthesis,": [
+     301
+    ],
+    "together": [
+     302
+    ],
+    "formal": [
+     305
+    ],
+    "definition": [
+     306
+    ],
+    "constitutes": [
+     311
+    ],
+    "principal": [
+     313
+    ],
+    "novelty": [
+     314
+    ],
+    "distinguishing": [
+     315
+    ],
+    "from": [
+     318
+    ],
+    "existing": [
+     319
+    ],
+    "quantum-networking": [
+     320
+    ],
+    "reviews.": [
+     321
+    ]
+   },
+   "ids": {
+    "openalex": "https://openalex.org/W4415111015",
+    "doi": "https://doi.org/10.3390/s26185696"
+   }
+  },
+  {
+   "id": "https://openalex.org/W4414816495",
+   "doi": "https://doi.org/10.1016/j.cpc.2026.110398",
+   "title": "exaPD: A highly parallelizable workflow for multi-element phase diagram (PD) construction",
+   "display_name": "exaPD: A highly parallelizable workflow for multi-element phase diagram (PD) construction",
+   "publication_date": "2026-09-03",
+   "publication_year": 2026,
+   "type": "article",
+   "language": "en",
+   "primary_location": {
+    "id": "doi:10.1016/j.cpc.2026.110398",
+    "is_oa": false,
+    "landing_page_url": "https://doi.org/10.1016/j.cpc.2026.110398",
+    "pdf_url": null,
+    "source": {
+     "id": "https://openalex.org/S142305363",
+     "display_name": "Computer Physics Communications",
+     "issn_l": "0010-4655",
+     "issn": [
+      "0010-4655",
+      "1879-2944"
+     ],
+     "is_oa": false,
+     "is_in_doaj": false,
+     "is_core": true,
+     "host_organization": "https://openalex.org/P4310320990",
+     "host_organization_name": "Elsevier BV",
+     "host_organization_lineage": [
+      "https://openalex.org/P4310320990"
+     ],
+     "host_organization_lineage_names": [
+      "Elsevier BV"
+     ],
+     "type": "journal"
+    },
+    "license": null,
+    "license_id": null,
+    "version": "publishedVersion",
+    "is_accepted": true,
+    "is_published": true,
+    "raw_source_name": "Computer Physics Communications",
+    "raw_type": "journal-article"
+   },
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {
+      "id": "https://openalex.org/A5053016834",
+      "display_name": "Feng Zhang"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      },
+      {
+       "id": "https://openalex.org/I2802789608",
+       "display_name": "Ames National Laboratory"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5101988570",
+      "display_name": "Zhuo Ye"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I2802789608",
+       "display_name": "Ames National Laboratory"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5119843826",
+      "display_name": "Maxim Moraru"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I1343871089",
+       "display_name": "Los Alamos National Laboratory"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5060737716",
+      "display_name": "Ying Wai Li"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I1343871089",
+       "display_name": "Los Alamos National Laboratory"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5048840152",
+      "display_name": "Weiyi Xia"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I2802789608",
+       "display_name": "Ames National Laboratory"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5141211501",
+      "display_name": "Yongxin Yao"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      },
+      {
+       "id": "https://openalex.org/I2802789608",
+       "display_name": "Ames National Laboratory"
+      }
+     ]
+    }
+   ],
+   "abstract_inverted_index": null,
+   "ids": {
+    "openalex": "https://openalex.org/W4414816495",
+    "doi": "https://doi.org/10.1016/j.cpc.2026.110398"
+   }
+  },
+  {
+   "id": "https://openalex.org/W7124125024",
+   "doi": null,
+   "title": "Evaluating the Effectiveness of a Practitioner-Designed Science-Based Interviewing and Interrogation Course : A Collaborative Training and Research Effort",
+   "display_name": "Evaluating the Effectiveness of a Practitioner-Designed Science-Based Interviewing and Interrogation Course : A Collaborative Training and Research Effort",
+   "publication_date": "2026-09-01",
+   "publication_year": 2026,
+   "type": "article",
+   "language": "en",
+   "primary_location": {
+    "id": "pmh:oai:eprints.lancs.ac.uk:234732",
+    "is_oa": true,
+    "landing_page_url": "https://eprints.lancs.ac.uk/id/eprint/234732/1/Russano_et_al._in_press_LCP.pdf",
+    "pdf_url": "https://eprints.lancs.ac.uk/id/eprint/234732/1/Russano_et_al._in_press_LCP.pdf",
+    "source": {
+     "id": "https://openalex.org/S4306401916",
+     "display_name": "Lancaster EPrints (Lancaster University)",
+     "issn_l": null,
+     "issn": null,
+     "is_oa": false,
+     "is_in_doaj": false,
+     "is_core": false,
+     "host_organization": "https://openalex.org/I67415387",
+     "host_organization_name": "Lancaster University",
+     "host_organization_lineage": [
+      "https://openalex.org/I67415387"
+     ],
+     "host_organization_lineage_names": [],
+     "type": "repository"
+    },
+    "license": null,
+    "license_id": null,
+    "version": "submittedVersion",
+    "is_accepted": false,
+    "is_published": false,
+    "raw_source_name": null,
+    "raw_type": "Journal Article"
+   },
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {
+      "id": "https://openalex.org/A5079551247",
+      "display_name": "Melissa B. Russano"
+     },
+     "institutions": []
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5122910018",
+      "display_name": "Christian Meissner"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5122991169",
+      "display_name": "Matthew Jones"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I79839527",
+       "display_name": "Roger Williams University"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5003701564",
+      "display_name": "Jesse N. Rothweiler"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I173911158",
+       "display_name": "Iowa State University"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5122943650",
+      "display_name": "Paul Taylor"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I67415387",
+       "display_name": "Lancaster University"
+      }
+     ]
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5122916729",
+      "display_name": "Christian Cory"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I4210108245",
+       "display_name": "Police Department"
+      }
+     ]
+    }
+   ],
+   "abstract_inverted_index": {
+    "Purpose": [
+     0
+    ],
+    "Shifting": [
+     1
+    ],
+    "interrogation": [
+     2,
+     40
+    ],
+    "approaches": [
+     3,
+     41
+    ],
+    "in": [
+     4,
+     129
+    ],
+    "the": [
+     5,
+     33,
+     56,
+     95,
+     101,
+     170
+    ],
+    "United": [
+     6,
+     96
+    ],
+    "States": [
+     7
+    ],
+    "from": [
+     8,
+     122
+    ],
+    "accusatorial": [
+     9
+    ],
+    "practices": [
+     10
+    ],
+    "to": [
+     11,
+     31,
+     43,
+     87,
+     90,
+     105
+    ],
+    "science-based": [
+     12,
+     66,
+     109,
+     165
+    ],
+    "methods": [
+     13,
+     67
+    ],
+    "has": [
+     14,
+     26,
+     76,
+     81
+    ],
+    "been": [
+     15,
+     77,
+     82
+    ],
+    "a": [
+     16,
+     28,
+     61,
+     107,
+     116,
+     136
+    ],
+    "challenge.": [
+     17
+    ],
+    "The": [
+     18,
+     98,
+     185
+    ],
+    "High-Value": [
+     19
+    ],
+    "Detainee": [
+     20
+    ],
+    "Interrogation": [
+     21
+    ],
+    "Group": [
+     22
+    ],
+    "(HIG)": [
+     23
+    ],
+    "research": [
+     24,
+     192
+    ],
+    "programme": [
+     25,
+     64,
+     111
+    ],
+    "taken": [
+     27
+    ],
+    "translational": [
+     29
+    ],
+    "approach": [
+     30
+    ],
+    "evaluating": [
+     32
+    ],
+    "efficacy": [
+     34
+    ],
+    "and": [
+     35,
+     39,
+     42,
+     51,
+     59,
+     70,
+     145,
+     151,
+     168,
+     182,
+     190
+    ],
+    "effectiveness": [
+     36
+    ],
+    "of": [
+     37,
+     68,
+     100,
+     131,
+     135,
+     164,
+     172,
+     187
+    ],
+    "interview": [
+     38
+    ],
+    "creating": [
+     44
+    ],
+    "training": [
+     45,
+     63,
+     75,
+     89,
+     110,
+     133,
+     138,
+     143,
+     153,
+     189
+    ],
+    "interventions": [
+     46
+    ],
+    "for": [
+     47,
+     84
+    ],
+    "law": [
+     48,
+     91,
+     125
+    ],
+    "enforcement,": [
+     49
+    ],
+    "military,": [
+     50
+    ],
+    "intelligence": [
+     52
+    ],
+    "personnel.": [
+     53
+    ],
+    "In": [
+     54
+    ],
+    "2014,": [
+     55
+    ],
+    "HIG": [
+     57,
+     85
+    ],
+    "developed": [
+     58
+    ],
+    "validated": [
+     60
+    ],
+    "week-long": [
+     62
+    ],
+    "on": [
+     65
+    ],
+    "interviewing": [
+     69
+    ],
+    "interrogation.": [
+     71
+    ],
+    "Although": [
+     72
+    ],
+    "that": [
+     73,
+     112,
+     159,
+     169
+    ],
+    "HIG-delivered": [
+     74
+    ],
+    "demonstrably": [
+     78
+    ],
+    "successful,": [
+     79
+    ],
+    "it": [
+     80
+    ],
+    "impractical": [
+     83
+    ],
+    "personnel": [
+     86
+    ],
+    "provide": [
+     88
+    ],
+    "enforcement": [
+     92,
+     126
+    ],
+    "investigators": [
+     93,
+     121,
+     160
+    ],
+    "across": [
+     94
+    ],
+    "States.": [
+     97
+    ],
+    "focus": [
+     99
+    ],
+    "current": [
+     102
+    ],
+    "effort": [
+     103
+    ],
+    "was": [
+     104,
+     113,
+     175
+    ],
+    "evaluate": [
+     106
+    ],
+    "practitioner-designed": [
+     108
+    ],
+    "co-developed": [
+     114
+    ],
+    "by": [
+     115
+    ],
+    "practitioner–researcher": [
+     117
+    ],
+    "team.": [
+     118
+    ],
+    "Methods": [
+     119
+    ],
+    "Forty-three": [
+     120
+    ],
+    "three": [
+     123
+    ],
+    "local": [
+     124
+    ],
+    "agencies": [
+     127
+    ],
+    "participated": [
+     128
+    ],
+    "one": [
+     130
+    ],
+    "four": [
+     132
+    ],
+    "iterations": [
+     134
+    ],
+    "5-day": [
+     137
+    ],
+    "course.": [
+     139
+    ],
+    "To": [
+     140
+    ],
+    "assess": [
+     141
+    ],
+    "both": [
+     142
+    ],
+    "adherence": [
+     144
+    ],
+    "effectiveness,": [
+     146
+    ],
+    "suspect": [
+     147
+    ],
+    "interrogations": [
+     148
+    ],
+    "conducted": [
+     149
+    ],
+    "before": [
+     150
+    ],
+    "after": [
+     152
+    ],
+    "were": [
+     154
+    ],
+    "evaluated.": [
+     155
+    ],
+    "Results": [
+     156
+    ],
+    "Findings": [
+     157
+    ],
+    "suggest": [
+     158
+    ],
+    "increased": [
+     161
+    ],
+    "their": [
+     162
+    ],
+    "use": [
+     163,
+     171
+    ],
+    "tactics": [
+     166
+    ],
+    "post-training,": [
+     167
+    ],
+    "such": [
+     173
+    ],
+    "techniques": [
+     174
+    ],
+    "associated": [
+     176
+    ],
+    "with": [
+     177
+    ],
+    "greater": [
+     178
+    ],
+    "cooperation,": [
+     179
+    ],
+    "information": [
+     180
+    ],
+    "disclosure,": [
+     181
+    ],
+    "admissions/confessions.": [
+     183
+    ],
+    "Conclusions": [
+     184
+    ],
+    "importance": [
+     186
+    ],
+    "co-produced": [
+     188
+    ],
+    "collaborative": [
+     191
+    ],
+    "efforts": [
+     193
+    ],
+    "is": [
+     194
+    ],
+    "highlighted.": [
+     195
+    ]
+   },
+   "ids": {
+    "openalex": "https://openalex.org/W7124125024"
+   }
+  }
+ ]
+}

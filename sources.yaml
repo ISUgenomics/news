@@ -39,7 +39,13 @@ nih_guide:
 
 pubmed_search:
   kind: pubmed                  # query set per profile; uses E-utilities esearch + esummary
-  email: "isugif2011@gmail.com" # NCBI asks callers to identify themselves
+  email: "severin@iastate.edu" # NCBI asks callers to identify themselves
+
+openalex:
+  kind: openalex                # institution + date window; `institution` set per profile
+  # The polite-pool contact OpenAlex asks for. Not a secret; it buys the
+  # faster, more reliable pool and is required rather than optional.
+  mailto: "severin@iastate.edu"
 
 nsf:
   kind: nsf                     # awardee | keyword | pi_name set per profile

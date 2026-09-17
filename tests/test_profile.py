@@ -319,18 +319,27 @@ llm:
     assert profile.sources[0].params == {"advanced_text_search": "maize genome"}
 
 
-def test_the_shipped_profile_loads(tmp_path):
-    """The real isu-ai.yaml, against the real sources.yaml."""
+def test_every_shipped_profile_loads(tmp_path):
+    """The real profiles/, against the real sources.yaml.
+
+    Asserts that each one loads rather than naming them: this used to pin the
+    exact list, so adding a profile — the thing the design is FOR — failed a
+    test about something else."""
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
     sources = load_sources(root / "sources.yaml", {"CD_TOKEN": "x"})
     config = load_yaml(root / "config.yaml")
+
+    on_disk = sorted(p.stem for p in (root / "profiles").glob("*.yaml"))
     profiles = load_all_profiles(
         root / "profiles", config=config, sources=sources, env={"CD_TOKEN": "x"}
     )
-    assert [p.name for p in profiles] == ["isu-ai"]
-    assert len(profiles[0].buckets) == 4
+
+    assert sorted(p.name for p in profiles) == on_disk, "every file loaded"
+    for profile in profiles:
+        assert profile.buckets, f"{profile.name} declares no sections"
+        assert profile.sources, f"{profile.name} declares no sources"
 
 
 # --- found by the adversarial review; each of these was a real defect --------

@@ -38,7 +38,7 @@ RSS = b"""<?xml version="1.0"?>
 
 
 def test_every_declared_kind_has_an_adapter():
-    assert set(ADAPTERS) == {"rss", "nsf", "nih", "usaspending", "pubmed"}
+    assert set(ADAPTERS) == {"rss", "nsf", "nih", "usaspending", "pubmed", "openalex"}
 
 
 def test_an_unknown_kind_names_the_source_and_the_known_kinds():
@@ -433,3 +433,39 @@ def test_a_genuinely_different_description_is_kept(monkeypatch):
     (items, _) = fetch("usaspending", {"kind": "usaspending"}, {"recipient": "A"},
                        since=SINCE, now=NOW)
     assert items[0].body.startswith("A longer description")
+
+
+# --- the registries must not drift apart ------------------------------------
+
+
+def test_every_kind_is_reachable_through_both_registries():
+    """There used to be two tables — ADAPTERS and a second copy inside
+    supports_history. Adding `openalex` to one left backfill silently
+    skipping it. They are derived from MODULES now; this pins that."""
+    from brief.sources import ADAPTERS, MODULES, supports_history
+
+    assert set(ADAPTERS) == set(MODULES)
+    for kind in MODULES:
+        supports_history(kind)  # must not raise for any registered kind
+
+
+def test_every_history_capable_kind_is_handled_by_rederive():
+    """`rederive` is a third per-source chain, dispatching on the source name.
+    A source that can fetch history but is missing from it silently returns
+    no facts on reindex — indistinguishable from a source that has none.
+
+    Checked structurally rather than by calling it: each branch needs a
+    well-formed raw record of its own shape, and inventing five of them would
+    test the fixtures, not the dispatch."""
+    import inspect
+
+    from brief.sources import MODULES, rederive, supports_history
+
+    source = inspect.getsource(rederive)
+    for kind in MODULES:
+        if not supports_history(kind):
+            continue
+        assert f'"{kind}"' in source, (
+            f"{kind} fetches history but rederive() never names it, so "
+            "brief reindex would leave its rows underived"
+        )

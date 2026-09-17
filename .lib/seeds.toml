@@ -165,3 +165,13 @@ tests = 40
 boundary = "docs/seeds/period-backfill-plan.md"
 when_to_use = "You run something on a schedule and need to fill in the periods it missed - the weeks before it existed, or the runs that failed - and you want the list of periods to work through, oldest first, with the ones already done left out."
 
+[[seed]]
+slug = "openalex-works-search"
+path = "src/brief/lib/openalex_works_search.py"
+test = "tests/test_openalex_works_search.py"
+planted = "2026-09-17"
+band = "unscored"
+tests = 34
+boundary = "docs/seeds/openalex-works-search.md"
+when_to_use = "You want an institution's recent publications and the affiliation-string search you reached for first is missing most of them. OpenAlex filters on a resolved institution id, so the query is exact rather than a string match, and it spans every discipline instead of one database's subject scope."
+demand = "Measured against the sibling pubmed-search seed over one 30-day window at one university: PubMed 99 works and 3 matching a topic filter, OpenAlex 338 and 21. The gap is structural — affiliation strings versus a resolved id, and one subject scope versus all of them."

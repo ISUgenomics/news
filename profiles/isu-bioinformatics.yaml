@@ -1,0 +1,82 @@
+name: isu-bioinformatics
+title: "Bioinformatics at ISU"
+cadence: weekly
+audience: "the bioinformatics facility and the PIs it collaborates with"
+persona: "analyst for a university genomics facility"
+
+sources:
+  # The four below reuse the exact parameters isu-ai already uses, so they
+  # share its source_key and read rows that are already stored. Adding this
+  # profile costs no fetch for them.
+  - inside_isu
+  - isu_research_news
+  - isu_news_service
+  - nsf: {awardee: "Iowa State University", awardee_state: "IA"}
+  - nih: {org_names: ["IOWA STATE UNIVERSITY"]}
+  - usaspending: {recipient: "IOWA STATE UNIVERSITY"}
+
+  # Publications. Without one, this profile is a grants list: of 125 already
+  # stored items matching these keywords, 122 were funding and 3 were news.
+  #
+  # OpenAlex rather than PubMed, measured over the same 30-day ISU window:
+  #
+  #     PubMed    99 works,   3 matching a bioinformatics filter
+  #     OpenAlex 338 works,  21 matching
+  #
+  # PubMed matches an affiliation *string* and covers one subject scope;
+  # OpenAlex filters on a resolved institution id across every discipline,
+  # which is where this campus's bioinformatics actually lives — ag, CS,
+  # statistics, engineering. `search` is left unset on purpose: relevance
+  # below is visible and versioned, OpenAlex's ranking is neither.
+  #
+  # The id is pinned, not searched. "Iowa State University" also matches its
+  # Digital Press and the Plant Sciences Institute; the seed refuses a bare
+  # name so that choice is made once, by a human, here.
+  # `mailto` comes from sources.yaml.
+  - openalex:
+      institution: "I173911158"     # Iowa State University, ror.org/04rswrd78
+
+  # Deliberately NOT inherited from isu-ai: changedetection is configured but
+  # not running, so it fails every ingest and is reported silent.
+
+relevance:
+  # Applied at selection over rows already stored — changing these costs no
+  # network, only a re-run of synthesize.
+  any_of:
+    - bioinformatics
+    - genomics
+    - genome
+    - sequencing
+    - transcriptomics
+    - proteomics
+    - computational biology
+    - RNA-seq
+    - GWAS
+    - pangenome
+    - metagenomics
+    - phylogenetics
+    - CRISPR
+    - microbiome
+    - plant breeding
+  # Start empty and let the Watch list earn the entries. A measured example of
+  # what will show up: "Distinguished, University and Morrill Professors 2026"
+  # scores four keyword hits because it lists people's fields.
+  none_of: []
+  max_items: 80
+
+buckets:
+  - name: Funding
+    ask: "awards, grants and gifts; sponsor, PI and amount verbatim"
+  - name: Publications
+    ask: "new papers from Iowa State groups; journal and first author verbatim"
+  - name: People
+    ask: "hires, departures, named chairs, major awards to individuals"
+  - name: Centers and initiatives
+    ask: "new cores, facilities, instruments, programs, partnerships"
+
+max_words: 1500
+
+delivery:
+  from: "brief@facility.iastate.edu"
+  to: ["severin@iastate.edu"]
+  subject: "{title} — week of {week_start} ({n} items)"

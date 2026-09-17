@@ -17,18 +17,25 @@ from datetime import datetime
 from typing import Any
 
 from brief.models import Item
-from brief.sources import nih, nsf, pubmed, rss, usaspending
+from brief.sources import nih, nsf, openalex, pubmed, rss, usaspending
 from brief.sources._format import money
 
 Fetch = Callable[..., list[Item]]
 
-ADAPTERS: dict[str, Fetch] = {
-    "rss": rss.fetch,
-    "nsf": nsf.fetch,
-    "nih": nih.fetch,
-    "usaspending": usaspending.fetch,
-    "pubmed": pubmed.fetch,
+#: kind -> the module that implements it. ONE registry, deliberately.
+#: There were two — this table and a second copy inside supports_history —
+#: and adding `openalex` to the first alone left backfill silently skipping
+#: it, because the second had never heard of it. A kind is one line here.
+MODULES = {
+    "rss": rss,
+    "openalex": openalex,
+    "nsf": nsf,
+    "nih": nih,
+    "usaspending": usaspending,
+    "pubmed": pubmed,
 }
+
+ADAPTERS: dict[str, Fetch] = {kind: module.fetch for kind, module in MODULES.items()}
 
 
 def supports_history(kind: str) -> bool:
@@ -39,11 +46,7 @@ def supports_history(kind: str) -> bool:
     deep ingest that silently included feeds would look like it had fetched
     history it never reached.
     """
-    module = {
-        "rss": rss, "nsf": nsf, "nih": nih,
-        "usaspending": usaspending, "pubmed": pubmed,
-    }.get(kind)
-    return bool(getattr(module, "SUPPORTS_HISTORY", False))
+    return bool(getattr(MODULES.get(kind), "SUPPORTS_HISTORY", False))
 
 
 #: How to recompute an item's derived fields from the raw record a source
@@ -70,6 +73,11 @@ def rederive(source: str, raw: dict) -> tuple[dict[str, str] | None, str | None]
 
         record = normalize_award(raw, award_type_group="grants")
         return usaspending._facts(record), record.get("published_at")
+    if source.startswith("openalex"):
+        from brief.lib.openalex_works_search import normalize_work
+
+        record = normalize_work(raw)
+        return openalex._facts(record), record.get("published_at")
     if source.startswith("pubmed"):
         from brief.lib.pubmed_search import record_to_item
 
@@ -113,4 +121,4 @@ def fetch(
     return adapter(source_name, merged, since=since, now=now), {}
 
 
-__all__ = ["ADAPTERS", "Item", "UnknownSourceKind", "fetch", "money", "rederive", "supports_history"]
+__all__ = ["ADAPTERS", "MODULES", "Item", "UnknownSourceKind", "fetch", "money", "rederive", "supports_history"]
