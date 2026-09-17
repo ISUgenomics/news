@@ -265,9 +265,9 @@ def last_seen_by_source(conn: sqlite3.Connection) -> dict[str, str]:
     one silent, rather than as uniformly healthy.
     """
     cur = conn.execute(
-        "SELECT source, MAX(fetched_at) AS last FROM items GROUP BY source"
+        "SELECT source_key, MAX(fetched_at) AS last FROM items GROUP BY source_key"
     )
-    return {r["source"]: r["last"] for r in cur.fetchall()}
+    return {r["source_key"]: r["last"] for r in cur.fetchall()}
 
 
 def silent_sources(

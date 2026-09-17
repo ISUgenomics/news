@@ -1,23 +1,26 @@
 # Every source, declared once. Profiles reference these by name and may override
 # parameters inline. A source used identically by five profiles is fetched once.
 #
-# `kind` names the adapter in src/brief/sources/. `verify: true` marks a URL that was
-# never confirmed from a live fetch — the poller logs it loudly until someone clears the flag.
+# `kind` names the adapter in src/brief/sources/. `verify: true` marks a URL that has
+# NOT been confirmed against a live fetch. It is documentation today, not a runtime
+# check — nothing reads it yet, so treat a flagged source as known-unreliable.
 
 inside_isu:
   kind: rss
-  url: "https://www.inside.iastate.edu/rss"
-  verify: true                  # site returned "Request Rejected" to a plain fetch; needs the browser UA
+  # Drupal, and it declares no feed anywhere in the page — found by probing the
+  # standard Drupal paths. Rejects a default Python User-Agent with "Request
+  # Rejected"; the browser UA the feed adapter sends gets through. Sends no
+  # ETag or Last-Modified, so every poll is a full fetch and dedup does the work.
+  url: "https://www.inside.iastate.edu/rss.xml"
 
 isu_research_news:
   kind: rss
-  url: "https://research.iastate.edu/feed/"
-  verify: true
+  url: "https://research.iastate.edu/feed/"   # WordPress; sends ETag, so an unchanged poll is a 304
 
 isu_news_service:
   kind: rss
-  url: "https://www.news.iastate.edu/feed"
-  verify: true
+  # Same Drupal setup as inside_isu; /rss also works but /rss.xml is canonical.
+  url: "https://www.news.iastate.edu/rss.xml"
 
 changedetection:
   kind: rss
@@ -25,7 +28,10 @@ changedetection:
 
 biorxiv_plant_biology:
   kind: rss
+  # Returns 404 against a live fetch. Left here as a placeholder for a faculty
+  # profile; find the current subject-feed path before any profile uses it.
   url: "https://connect.biorxiv.org/biorxiv_xml/plant_biology"
+  verify: true
 
 nih_guide:
   kind: rss

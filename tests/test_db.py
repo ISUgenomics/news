@@ -351,3 +351,32 @@ def test_source_state_is_keyed_per_fetch_not_per_source_name(conn):
     db.set_source_state(conn, "nsf#bbbb", etag="two", last_modified=None, now=NOW)
     assert db.get_source_state(conn, "nsf#aaaa")["etag"] == "one"
     assert db.get_source_state(conn, "nsf#bbbb")["etag"] == "two"
+
+
+def test_the_silence_check_is_keyed_the_same_way_ingest_plans_its_fetches(conn):
+    """Otherwise every parameterised source is reported silent on a good run.
+
+    The keys ingest plans with carry the parameters (`nsf#7f784cd7`). If the
+    silence check reports plain `nsf`, the lookup misses and a source that just
+    delivered 316 awards is announced as never seen. An alert that fires on
+    every healthy run is one the operator turns off.
+    """
+    db.upsert_items(conn, [item(source="nsf")], now=NOW, source_key="nsf#7f784cd7")
+    last_seen = db.last_seen_by_source(conn)
+
+    assert "nsf#7f784cd7" in last_seen, "the check must see the key, not the display name"
+    assert db.silent_sources(
+        last_seen, ["nsf#7f784cd7"], now=NOW, threshold_days=14
+    ) == [], "a source that just delivered must not be reported silent"
+
+
+def test_one_source_can_be_healthy_for_one_profile_and_silent_for_another(conn):
+    """Two parameter sets against one endpoint are two independent health states."""
+    db.upsert_items(conn, [item(source="nsf")], now=NOW, source_key="nsf#working")
+    silent = db.silent_sources(
+        db.last_seen_by_source(conn),
+        ["nsf#working", "nsf#broken"],
+        now=NOW,
+        threshold_days=14,
+    )
+    assert silent == [("nsf#broken", None)]
