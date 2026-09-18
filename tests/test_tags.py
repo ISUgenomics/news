@@ -178,3 +178,64 @@ def test_iter_taggable_yields_text_and_parsed_raw(conn):
     rows = list(db.iter_taggable(conn))
     assert [(r[1], r[2], r[4]) for r in rows] == [("feed_a", "Maize genome", None), ("feed_a", "Parking", None)]
     assert [r[3] for r in rows] == ["a genome", "lot 4"]
+
+
+# --- hierarchy: declared, never inferred --------------------------------------
+
+HIER = """
+registry:
+  biology: {}
+  genomics:
+    match: [genome]
+    broader: biology
+  crispr:
+    broader: genomics
+aliases:
+  genome-analysis: genomics
+"""
+
+
+def test_ancestors_walk_the_declared_parents_nearest_first(tmp_path):
+    vocab = _vocab(tmp_path, HIER)
+    assert tags.ancestors("crispr", vocab) == ["genomics", "biology"]
+    assert tags.ancestors("biology", vocab) == []
+
+
+def test_derive_adds_ancestors_with_origin_broader_and_keeps_an_earned_parent(tmp_path):
+    vocab = _vocab(tmp_path, HIER)
+    assert tags.derive_tags(["CRISPR"], "", vocab)[0] == [
+        ("crispr", "source"), ("genomics", "broader"), ("biology", "broader"),
+    ]
+    # genomics earned by phrase keeps its own origin; only biology is added
+    assert tags.derive_tags(["CRISPR"], "the maize genome", vocab)[0] == [
+        ("crispr", "source"), ("genomics", "phrase"), ("biology", "broader"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "text,needle",
+    [
+        ("registry:\n  a:\n    broader: b\n", "not a registry term"),
+        ("registry:\n  a:\n    broader: a\n", "names itself"),
+        ("registry:\n  a:\n    broader: b\n  b:\n    broader: a\n", "cycles"),
+        ("registry:\n  a:\n    broader: [b]\n  b: {}\n", "must be one term"),
+    ],
+)
+def test_a_bad_hierarchy_is_refused_by_name(tmp_path, text, needle):
+    (tmp_path / "tags.yaml").write_text(text)
+    with pytest.raises(tags.TagsError, match=needle):
+        tags.load_vocabulary(tmp_path / "tags.yaml")
+
+
+def test_a_profile_may_ask_for_a_parent_term(tmp_path):
+    vocab = _vocab(tmp_path, HIER)
+    assert tags.unknown_tags(["biology", "genome-analysis"], vocab) == []
+
+
+def test_tag_counts_leaves_hides_parent_only_rows(conn):
+    ids = [r[0] for r in conn.execute("SELECT id FROM items ORDER BY id")]
+    db.replace_tags(conn, ids[0], [("genomics", "phrase"), ("biology", "broader")])
+    db.replace_tags(conn, ids[1], [("biology", "source")])
+    assert db.tag_counts(conn) == [("biology", 2), ("genomics", 1)]
+    assert db.tag_counts(conn, leaves=True) == [("biology", 1), ("genomics", 1)]
+    assert db.untagged_ids(conn) == set()

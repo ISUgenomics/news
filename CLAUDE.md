@@ -164,8 +164,8 @@ other's rows. `facts_json` and `published_at` are derived from `raw_json` and ar
 hash, so `brief reindex` can rebuild them offline without creating a duplicate.
 
 `item_tags` is derived the same way and by the same command: `origin` says whether the tag
-came from a label the source sent (`source`) or from a `match` phrase in `tags.yaml` hitting
-the text (`phrase`). Only registry terms are ever stored; a label the resolver cannot place
+came from a label the source sent (`source`), from a `match` phrase in `tags.yaml` hitting
+the text (`phrase`), or from a declared `broader` parent of either (`broader`). Only registry terms are ever stored; a label the resolver cannot place
 is reported by `brief tags --new`, not written. A profile's `relevance.tags` is checked
 against the registry at load time — a typo would otherwise match nothing and read as a
 quiet week.

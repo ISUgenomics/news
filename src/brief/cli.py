@@ -44,6 +44,7 @@ from brief.profile import (
 from brief.sources import fetch as fetch_source
 from brief.sources import rederive, relabel, supports_history
 from brief import tags as tags_mod
+from brief.lib.distinctive_terms import distinctive_terms
 
 app = typer.Typer(add_completion=False, help="Weekly topic briefs from public sources.")
 
@@ -842,17 +843,22 @@ def tags(
     root: Path = typer.Option(ROOT),
     counts: bool = typer.Option(False, "--counts", help="Items per tag"),
     by_source: bool = typer.Option(False, "--by-source", help="With --counts: split per source"),
+    leaves: bool = typer.Option(False, "--leaves", help="With --counts: hide tags earned only as a parent"),
     new: bool = typer.Option(False, "--new", help="Labels the sources send that tags.yaml does not know"),
+    suggest: bool = typer.Option(False, "--suggest", help="Words the UNTAGGED items are made of — candidates for match phrases"),
     item: int | None = typer.Option(None, "--item", help="Tags on one item id"),
     source: str | None = typer.Option(None, help="Only this source"),
     top: int = typer.Option(40, help="Rows to show"),
+    min_count: int = typer.Option(10, help="With --suggest: a word must appear in this many untagged items"),
+    min_ratio: float = typer.Option(1.5, help="With --suggest: how much commoner among untagged than tagged items"),
 ) -> None:
     """Explore the tags: what the corpus carries, and what it could carry.
 
     `--counts` reads the stored table. `--new` re-derives offline and reports
     the labels the resolver could not place, most frequent first — that list
-    is how tags.yaml grows, from evidence rather than memory. Nothing here
-    writes.
+    is how the registry grows. `--suggest` reads the untagged items' own
+    words against the tagged ones — that list is how `match` phrases grow.
+    Both from evidence rather than memory. Nothing here writes.
     """
     config, _sources, _profiles = load_world(root)
     conn = db.connect(root / (str(config.get("db") or "data/items.db")))
@@ -861,7 +867,7 @@ def tags(
             typer.echo(tag)
         return
     if counts:
-        rows = db.tag_counts(conn, by_source=by_source)
+        rows = db.tag_counts(conn, by_source=by_source, leaves=leaves)
         for row in rows[:top]:
             typer.echo("  ".join(str(x) for x in row))
         if not rows:
@@ -886,7 +892,23 @@ def tags(
         if not seen:
             typer.echo("nothing unplaced — every label the sources send is in tags.yaml")
         return
-    typer.echo("one of --counts, --new, or --item is required")
+    if suggest:
+        untagged = db.untagged_ids(conn)
+        fg: list[str] = []
+        bg: list[str] = []
+        for item_id, _src, title, body, _raw in db.iter_taggable(conn, [source] if source else None):
+            (fg if item_id in untagged else bg).append(f"{title}\n\n{body}")
+        terms = distinctive_terms(fg, bg, min_count=min_count, min_ratio=min_ratio, top=top)
+        for t in terms:
+            typer.echo(f"{t['foreground']:>6}  {t['term']}  (x{t['ratio']})")
+        if not fg:
+            typer.echo("every item is tagged — nothing to suggest")
+        elif not terms:
+            typer.echo(f"{len(fg)} untagged items share no word above the floors; lower --min-count or --min-ratio")
+        else:
+            typer.echo(f"\n{len(fg)} untagged of {len(fg) + len(bg)}. Add the useful ones as `match` phrases in tags.yaml, then `brief reindex`.")
+        return
+    typer.echo("one of --counts, --new, --suggest, or --item is required")
     raise typer.Exit(code=2)
 
 

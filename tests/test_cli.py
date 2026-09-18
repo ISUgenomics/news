@@ -1000,3 +1000,20 @@ def test_a_profile_naming_an_unknown_tag_is_skipped_not_run(tmp_path):
     )
     _config, _sources, profiles = cli.load_world(root)
     assert [p.name for p in profiles] == ["ok"]
+
+
+def test_tags_suggest_lists_the_untagged_items_words_not_the_tagged_ones(tmp_path):
+    root = _tag_root(tmp_path, vocab="registry:\n  genomics:\n    match: [genome]\n  rust: {}\n")
+    conn = db.connect(root / "data" / "items.db")
+    db.upsert_items(
+        conn,
+        [Item(source="feed_a", url=f"https://example.test/b{i}", title=f"Battery thermal study {i}", body="batteries and thermal load") for i in range(3)],
+        now=NOW,
+    )
+    conn.close()
+    runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    out = runner.invoke(cli.app, ["tags", "--root", str(root), "--suggest", "--min-count", "2", "--min-ratio", "1.0"])
+    assert out.exit_code == 0, out.output
+    assert "batteries" in out.output and "thermal" in out.output
+    assert "genome" not in out.output  # the tagged item's word is background, not foreground
+    assert "untagged of" in out.output

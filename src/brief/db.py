@@ -430,20 +430,33 @@ def tags_for(conn: sqlite3.Connection, ids: Iterable[int]) -> dict[int, list[str
     return out
 
 
-def tag_counts(conn: sqlite3.Connection, *, by_source: bool = False) -> list[tuple]:
-    """``(tag, n)`` rows, or ``(tag, source, n)`` with ``by_source``, most common first."""
+def untagged_ids(conn: sqlite3.Connection) -> set[int]:
+    """Ids of items with no row in ``item_tags`` — the vocabulary's blind spot."""
+    return {
+        int(r[0])
+        for r in conn.execute(
+            "SELECT i.id FROM items i LEFT JOIN item_tags t ON t.item_id = i.id WHERE t.item_id IS NULL"
+        )
+    }
+
+
+def tag_counts(conn: sqlite3.Connection, *, by_source: bool = False, leaves: bool = False) -> list[tuple]:
+    """``(tag, n)`` rows, or ``(tag, source, n)`` with ``by_source``, most common
+    first. ``leaves`` drops rows earned only as a declared parent, so a
+    roll-up and a leaf count are both one flag away."""
+    where = " WHERE t.origin != 'broader'" if leaves else ""
     if by_source:
         return [
             (str(r[0]), str(r[1]), int(r[2]))
             for r in conn.execute(
                 "SELECT t.tag, i.source, COUNT(*) FROM item_tags t JOIN items i ON i.id = t.item_id"
-                " GROUP BY t.tag, i.source ORDER BY COUNT(*) DESC, t.tag, i.source"
+                f"{where} GROUP BY t.tag, i.source ORDER BY COUNT(*) DESC, t.tag, i.source"
             )
         ]
     return [
         (str(r[0]), int(r[1]))
         for r in conn.execute(
-            "SELECT tag, COUNT(*) FROM item_tags GROUP BY tag ORDER BY COUNT(*) DESC, tag"
+            f"SELECT t.tag, COUNT(*) FROM item_tags t{where} GROUP BY t.tag ORDER BY COUNT(*) DESC, t.tag"
         )
     ]
 

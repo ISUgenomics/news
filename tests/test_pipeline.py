@@ -1008,3 +1008,15 @@ def test_tags_appear_beside_the_citation(conn):
         result.result, profile, selection, week_start=WEEK, provider_name="stub", item_urls=urls,
     )
     assert f"[{cited}](" in bare.markdown
+
+
+def test_a_profile_asking_for_a_parent_selects_a_child_tagged_item(conn):
+    """The hierarchy lands in the stored tag set at derive time, so selection
+    needs no walk: `biology` is simply one of the item's tags."""
+    offtopic = _tag(conn, "https://example.test/offtopic", "genomics", "biology")
+    profile = make_profile(relevance=Relevance(any_of=("machine learning", "AI"), tags=("biology",)))
+    rows = db.items_fetched_since(conn, [r.name for r in profile.sources], since=NOW - timedelta(days=7))
+    selection = select_mod.select(
+        rows, profile, context_window_tokens=100_000, tags_by_item=db.tags_for(conn, [int(r["id"]) for r in rows])
+    )
+    assert offtopic in {c.id for c in selection.candidates}

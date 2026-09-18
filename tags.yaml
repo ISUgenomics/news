@@ -11,58 +11,91 @@
 #           labels can still earn the tag.
 # aliases:  label (kebab-case) -> registry term, for near-misses the fuzzy
 #           rung will not bridge (`genome` is three edits from `genomics`).
+# broader:  one declared parent per term. Declared, never inferred. An item
+#           tagged `genomics` is also tagged `biology` with origin `broader`,
+#           so a profile may ask for the parent. A wrong parent is one line.
+#
+# Grow the `match` lists from `brief tags --suggest`: it lists the words the
+# untagged items are made of, most frequent first.
 
 registry:
   genomics:
     match: [genomics, genome, genomes, genomic, pangenome]
+    broader: biology
   bioinformatics:
     match: [bioinformatics, "computational biology"]
+    broader: biology
   sequencing:
     match: [sequencing, "RNA-seq", "long-read", nanopore, illumina]
+    broader: biology
   transcriptomics:
     match: [transcriptomics, transcriptome, "single-cell"]
+    broader: biology
   proteomics:
     match: [proteomics, proteome]
+    broader: biology
   metagenomics:
     match: [metagenomics, metagenome, microbiome]
+    broader: biology
   phylogenetics:
     match: [phylogenetics, phylogeny, phylogenomics]
+    broader: biology
   plant-breeding:
     match: ["plant breeding", cultivar, germplasm]
+    broader: biology
   crispr:
     match: [CRISPR, "gene editing", "genome editing"]
+    broader: biology
   machine-learning:
     match: ["machine learning", "deep learning", "neural network"]
+    broader: computer-science
   artificial-intelligence:
     match: ["artificial intelligence", "large language model", LLM]
+    broader: computer-science
   agriculture:
     match: [agriculture, agronomy, crop, livestock]
   rust:
     match: [rustlang, "written in Rust"]
+    broader: computer-science
   software:
     match: [software, toolkit, pipeline, workflow]
+    broader: computer-science
   plant-science:
     match: ["plant science", botany, arabidopsis, maize, soybean]
+    broader: biology
   biotechnology:
     match: [biotechnology, biotech]
+    broader: biology
   data-science:
     match: ["data science", "data mining", statistics, statistical]
+    broader: computer-science
   ecology:
     match: [ecology, ecological, biodiversity]
+    broader: biology
   neuroscience:
     match: [neuroscience, neural, brain]
+    broader: biology
   funding: {}
   computer-science: {}
   biology: {}
   chemistry: {}
-  engineering: {}
-  materials-science: {}
+  engineering:
+    match: [engineering, manufacturing, sensors, alloys, semiconductors, robotics]
+  materials-science:
+    match: [materials, polymer, "thin film", atomic, nanoscale]
+    broader: chemistry
   mathematics: {}
   medicine: {}
-  health: {}
+  health:
+    match: [health, disease, clinical, patients, medical, epidemiology]
   environmental-science: {}
   psychology: {}
-  physics: {}
+  physics:
+    match: [physics, quantum, particles, photonics, plasma]
+  education:
+    match: [education, educate, students, training, workshop, curriculum, "K-12", undergraduate]
+  energy:
+    match: [energy, batteries, battery, solar, wind, electric, thermal]
 
 aliases:
   genome: genomics

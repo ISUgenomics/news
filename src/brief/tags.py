@@ -13,8 +13,9 @@ terms, and one compiled phrase matcher per term that declares ``match``. A
 missing file is an empty vocabulary, which switches tagging off; a malformed
 one raises ``TagsError`` naming the key. ``derive_tags(labels, text, vocab)``
 returns ``([(tag, origin), ...], new_terms)``: only registry terms are ever
-returned as tags, each with origin ``"source"`` (a label resolved to it) or
-``"phrase"`` (its ``match`` phrases hit the text); ``new_terms`` are the
+returned as tags, each with origin ``"source"`` (a label resolved to it),
+``"phrase"`` (its ``match`` phrases hit the text), or ``"broader"`` (a
+declared parent of a tag earned either way); ``new_terms`` are the
 labels the resolver could not place, reported for curation and never stored.
 ``unknown_tags(wanted, vocab)`` is the check a profile's ``relevance.tags``
 runs against.
@@ -43,10 +44,12 @@ from brief.vendor.tag_vocabulary_resolve import kebab_case, resolve_tags
 
 __all__ = [
     "DEFAULT_PATH",
+    "ORIGIN_BROADER",
     "ORIGIN_PHRASE",
     "ORIGIN_SOURCE",
     "TagsError",
     "Vocabulary",
+    "ancestors",
     "derive_tags",
     "load_vocabulary",
     "unknown_tags",
@@ -55,6 +58,7 @@ __all__ = [
 DEFAULT_PATH = "tags.yaml"
 ORIGIN_SOURCE = "source"
 ORIGIN_PHRASE = "phrase"
+ORIGIN_BROADER = "broader"
 
 #: A label shorter than this after normalisation is noise: "a", "c" (from
 #: "C++"), "ml" is handled by an alias instead. The resolver does not filter
@@ -71,6 +75,10 @@ class Vocabulary:
     registry: dict[str, dict[str, Any]]
     aliases: dict[str, str]
     matchers: dict[str, list[re.Pattern[str]]]
+    #: term -> its one declared parent. Declared, never inferred: an inferred
+    #: hierarchy chains unrelated things together. One parent keeps the walk
+    #: a tree, so an ancestor list is short and has one order.
+    broader: dict[str, str]
 
     def __bool__(self) -> bool:
         return bool(self.registry)
@@ -80,13 +88,13 @@ def load_vocabulary(path: str | Path) -> Vocabulary:
     """Read ``tags.yaml``. Absent means tagging is off; malformed is an error."""
     p = Path(path)
     if not p.is_file():
-        return Vocabulary({}, {}, {})
+        return Vocabulary({}, {}, {}, {})
     try:
         raw = load_yaml(p)
     except ProfileError as exc:  # unreadable or not YAML; same shape of failure
         raise TagsError(str(exc)) from exc
     if raw is None:
-        return Vocabulary({}, {}, {})
+        return Vocabulary({}, {}, {}, {})
     if not isinstance(raw, Mapping):
         raise TagsError(f"{p}: must be a mapping with `registry` and `aliases`")
 
@@ -107,6 +115,27 @@ def load_vocabulary(path: str | Path) -> Vocabulary:
         if phrases:
             matchers[term] = compile_terms(phrases)
 
+    broader: dict[str, str] = {}
+    for term, spec in registry.items():
+        parent = spec.get("broader")
+        if parent is None:
+            continue
+        if not isinstance(parent, str):
+            raise TagsError(f"{p}: registry.{term}.broader must be one term, not {type(parent).__name__}")
+        if parent not in registry:
+            raise TagsError(f"{p}: registry.{term}.broader names {parent!r}, which is not a registry term")
+        if parent == term:
+            raise TagsError(f"{p}: registry.{term}.broader names itself")
+        broader[term] = parent
+    for term in broader:
+        seen = [term]
+        cur = term
+        while cur in broader:
+            cur = broader[cur]
+            if cur in seen:
+                raise TagsError(f"{p}: broader chain cycles: {' -> '.join(seen + [cur])}")
+            seen.append(cur)
+
     aliases: dict[str, str] = {}
     for alias, target in (raw.get("aliases") or {}).items():
         alias, target = str(alias), str(target)
@@ -117,7 +146,17 @@ def load_vocabulary(path: str | Path) -> Vocabulary:
         if alias in registry:
             raise TagsError(f"{p}: {alias!r} is both a registry term and an alias")
         aliases[alias] = target
-    return Vocabulary(registry, aliases, matchers)
+    return Vocabulary(registry, aliases, matchers, broader)
+
+
+def ancestors(term: str, vocab: Vocabulary) -> list[str]:
+    """The declared parents of ``term``, nearest first. Empty for a root."""
+    out: list[str] = []
+    cur = term
+    while cur in vocab.broader:
+        cur = vocab.broader[cur]
+        out.append(cur)
+    return out
 
 
 def derive_tags(
@@ -142,6 +181,12 @@ def derive_tags(
         if score_text(text, patterns):
             tags.append((term, ORIGIN_PHRASE))
             have.add(term)
+    # Ancestors last, so a parent earned in its own right keeps its origin.
+    for term, _origin in list(tags):
+        for parent in ancestors(term, vocab):
+            if parent not in have:
+                tags.append((parent, ORIGIN_BROADER))
+                have.add(parent)
     return tags, new
 
 

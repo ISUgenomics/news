@@ -5,14 +5,14 @@
 # news — codeLibrary status
 
 **Repo:** `/Users/andrewseverin/AI/news`  
-**HEAD:** 3c20a39 on `feat/item-tags`  
+**HEAD:** bfa94e2 on `feat/item-tags`  
 **Generated:** 2026-09-18 — refresh with `/lib-status`
 
 ## Extracted into codeLibrary
 
 None yet. `/lib-harvest` proposes candidates.
 
-## Seeds awaiting graduation (18)
+## Seeds awaiting graduation (19)
 
 Planted by `/lib-seed`, shaped for extraction, not extracted yet.
 
@@ -34,12 +34,13 @@ Planted by `/lib-seed`, shaped for extraction, not extracted yet.
 - `src/brief/lib/crates_io_search.py` — planted 2026-09-17, band unscored
 - `src/brief/lib/github_repo_search.py` — planted 2026-09-17, band unscored
 - `src/brief/lib/ascii_timeseries.py` — planted 2026-09-17, band unscored
+- `src/brief/lib/distinctive_terms.py` — planted 2026-09-18, band strong
 
 Graduate one when a second project wants it: `/lib-extract`
 
 ## Structure
 
-61 Python modules scanned.
+62 Python modules scanned.
 
 **Packages:** `brief`, `tests`
 
@@ -58,14 +59,14 @@ Graduate one when a second project wants it: `/lib-extract`
 
 Untangle: `/lib-fix`
 
-## Worth extracting next (36)
+## Worth extracting next (37)
 
 - `src/brief/lib/ascii_timeseries.py` — strong (23)
 - `src/brief/lib/config_env_interpolate.py` — strong (23)
+- `src/brief/lib/distinctive_terms.py` — strong (23)
 - `src/brief/lib/keyword_relevance.py` — strong (22)
 - `src/brief/lib/crates_io_search.py` — strong (21)
-- `src/brief/lib/github_repo_search.py` — strong (20)
-- …and 31 more
+- …and 32 more
 
 Full ranking: `/lib-harvest`. The scan has never read a line of the code it ranks — expect some of it to be wrong.
 
