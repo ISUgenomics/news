@@ -14,7 +14,9 @@ The first three are **idempotent**: a rerun after a failure never double-counts 
 
 Everything topic-specific lives in `profiles/<name>.yaml`. Adding a profile is a YAML file.
 **Any change that makes a new profile require code is wrong.** No string in `src/brief/`
-names Iowa State, AI, a person, or a recipient.
+names Iowa State, AI, a person, or a recipient. The tag vocabulary is data too: `tags.yaml`
+holds every registry term, alias and match phrase, and grows from `brief tags --new`, never
+from a string in code.
 
 ## 3. `src/brief/lib/` is the seed zone
 
@@ -101,9 +103,10 @@ before a commit.
 
 ## Schema, verbatim
 
-**Four tables.** One SQLite file is the seam between the commands: `ingest` writes `items`,
-`synthesize` reads them and writes `briefs`, `deliver` reads a brief and stamps `sent_at`.
-Every idempotency claim in rule 1 is a constraint here, not application logic.
+**Five tables.** One SQLite file is the seam between the commands: `ingest` writes `items`,
+`reindex` derives `item_tags`, `synthesize` reads both and writes `briefs`, `deliver` reads a
+brief and stamps `sent_at`. Every idempotency claim in rule 1 is a constraint here, not
+application logic.
 
 ```sql
 CREATE TABLE items (
@@ -125,6 +128,12 @@ CREATE TABLE briefs (
 
 CREATE TABLE source_state (
   source_key TEXT PRIMARY KEY, etag TEXT, last_modified TEXT, updated_at TEXT NOT NULL);
+
+CREATE TABLE item_tags (
+  item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  tag TEXT NOT NULL, origin TEXT NOT NULL, PRIMARY KEY (item_id, tag));
+
+CREATE INDEX item_tags_tag ON item_tags(tag);
 
 CREATE TABLE schema_version (version INTEGER PRIMARY KEY);
 ```
@@ -154,6 +163,13 @@ when a profile supplied some. Two profiles querying one endpoint differently mus
 other's rows. `facts_json` and `published_at` are derived from `raw_json` and are **not** in the
 hash, so `brief reindex` can rebuild them offline without creating a duplicate.
 
+`item_tags` is derived the same way and by the same command: `origin` says whether the tag
+came from a label the source sent (`source`) or from a `match` phrase in `tags.yaml` hitting
+the text (`phrase`). Only registry terms are ever stored; a label the resolver cannot place
+is reported by `brief tags --new`, not written. A profile's `relevance.tags` is checked
+against the registry at load time — a typo would otherwise match nothing and read as a
+quiet week.
+
 ## Item, verbatim
 
 ```python
@@ -174,8 +190,8 @@ an adapter.
 
 ## 11. Five commands now, not four
 
-`brief reindex` rebuilds `facts` and `published_at` from the stored `raw_json`. Offline, no
-network, no new rows. Reach for it instead of deleting and refetching whenever a derived field
+`brief reindex` rebuilds `facts`, `published_at` and `item_tags` from the stored `raw_json`.
+Offline, no network, no new rows. `brief tags --counts | --new | --item N` reads them back. Reach for it instead of deleting and refetching whenever a derived field
 changes: 1,310 rows in 0.24 seconds against three minutes of API calls.
 
 `brief backfill --since <date>` fills past weeks, selecting by **publication** date where the

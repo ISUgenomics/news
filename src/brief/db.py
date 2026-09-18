@@ -30,7 +30,7 @@ from typing import Any
 from brief.models import Item
 from brief.vendor.sqlite_versioned_schema import init_schema
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 DDL = """
 CREATE TABLE IF NOT EXISTS items (
@@ -75,6 +75,15 @@ CREATE TABLE IF NOT EXISTS briefs (
   sent_at        TEXT,
   UNIQUE(profile, week_start)
 );
+
+CREATE TABLE IF NOT EXISTS item_tags (
+  item_id  INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  tag      TEXT    NOT NULL,
+  origin   TEXT    NOT NULL,
+  PRIMARY KEY (item_id, tag)
+);
+
+CREATE INDEX IF NOT EXISTS item_tags_tag ON item_tags(tag);
 """
 
 DEFAULT_BODY_CAP = 8192
@@ -377,6 +386,87 @@ def update_derived(
         changed += cur.rowcount if cur.rowcount > 0 else 0
     conn.commit()
     return changed
+
+
+def replace_tags(
+    conn: sqlite3.Connection, item_id: int, tags: Iterable[tuple[str, str]]
+) -> bool:
+    """Set an item's tags to exactly ``tags``. True if anything changed.
+
+    Derived, like ``facts_json``: not in ``content_hash``, so re-tagging can
+    never create a duplicate row, and ``brief reindex`` rebuilds every item's
+    tags from ``raw_json`` offline. Does not commit; the caller commits once
+    per pass.
+    """
+    wanted = sorted({(str(t), str(o)) for t, o in tags})
+    have = sorted(
+        (row[0], row[1])
+        for row in conn.execute(
+            "SELECT tag, origin FROM item_tags WHERE item_id = ?", (item_id,)
+        )
+    )
+    if wanted == have:
+        return False
+    conn.execute("DELETE FROM item_tags WHERE item_id = ?", (item_id,))
+    conn.executemany(
+        "INSERT INTO item_tags (item_id, tag, origin) VALUES (?, ?, ?)",
+        [(item_id, t, o) for t, o in wanted],
+    )
+    return True
+
+
+def tags_for(conn: sqlite3.Connection, ids: Iterable[int]) -> dict[int, list[str]]:
+    """``{item_id: [tag, ...]}`` for the ids given; ids with no tags are absent."""
+    out: dict[int, list[str]] = {}
+    wanted = [int(i) for i in ids]
+    for start in range(0, len(wanted), 500):
+        chunk = wanted[start : start + 500]
+        marks = ",".join("?" * len(chunk))
+        for row in conn.execute(
+            f"SELECT item_id, tag FROM item_tags WHERE item_id IN ({marks}) ORDER BY item_id, tag",
+            chunk,
+        ):
+            out.setdefault(int(row[0]), []).append(str(row[1]))
+    return out
+
+
+def tag_counts(conn: sqlite3.Connection, *, by_source: bool = False) -> list[tuple]:
+    """``(tag, n)`` rows, or ``(tag, source, n)`` with ``by_source``, most common first."""
+    if by_source:
+        return [
+            (str(r[0]), str(r[1]), int(r[2]))
+            for r in conn.execute(
+                "SELECT t.tag, i.source, COUNT(*) FROM item_tags t JOIN items i ON i.id = t.item_id"
+                " GROUP BY t.tag, i.source ORDER BY COUNT(*) DESC, t.tag, i.source"
+            )
+        ]
+    return [
+        (str(r[0]), int(r[1]))
+        for r in conn.execute(
+            "SELECT tag, COUNT(*) FROM item_tags GROUP BY tag ORDER BY COUNT(*) DESC, tag"
+        )
+    ]
+
+
+def iter_taggable(
+    conn: sqlite3.Connection, sources: Sequence[str] | None = None
+) -> Iterable[tuple[int, str, str, str, dict | None]]:
+    """Every item as ``(id, source, title, body, raw)``; ``raw`` is None when
+    the source stored no record (feeds), in which case only phrases can tag it."""
+    sql = "SELECT id, source, title, body, raw_json FROM items"
+    params: tuple = ()
+    if sources:
+        sql += f" WHERE source IN ({','.join('?' * len(sources))})"
+        params = tuple(sources)
+    for row in conn.execute(sql + " ORDER BY id", params):
+        raw = None
+        if row[4]:
+            try:
+                parsed = json.loads(row[4])
+                raw = parsed if isinstance(parsed, dict) else None
+            except ValueError:
+                raw = None
+        yield int(row[0]), str(row[1]), str(row[2] or ""), str(row[3] or ""), raw
 
 
 def brief_weeks(

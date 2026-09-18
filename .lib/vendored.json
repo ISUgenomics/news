@@ -73,5 +73,17 @@
       "report.py": "96643ebf8b8a4b41",
       "scanner.py": "aa7d9a6b4b830f94"
     }
+  },
+  {
+    "slug": "tag-vocabulary-resolve",
+    "package": "tag_vocabulary_resolve",
+    "tier": "verified",
+    "vendored": "2026-09-18",
+    "dependencies": [],
+    "files": {
+      "__init__.py": "41eeb74cb036b815",
+      "core.py": "4f9bec7a82179159"
+    },
+    "note": "Folds source-provided labels (OpenAlex concepts, GitHub topics, crates categories) and phrase hits into the controlled vocabulary in tags.yaml; reports new terms for curation."
   }
 ]

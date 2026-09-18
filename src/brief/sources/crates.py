@@ -60,6 +60,11 @@ def _title(c: Mapping[str, Any]) -> str:
     return f"{c['name']} {version}".strip() if version else str(c["name"])
 
 
+def _labels(c: Mapping[str, Any]) -> list[str]:
+    """Keywords and categories as published on crates.io."""
+    return [str(x) for x in list(c.get("keywords") or []) + list(c.get("categories") or []) if x]
+
+
 def _facts(c: Mapping[str, Any]) -> dict[str, str]:
     pairs = (
         ("Version", c.get("version")),

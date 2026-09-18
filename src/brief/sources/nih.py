@@ -43,6 +43,16 @@ def fetch(
     ]
 
 
+def _labels(r: Mapping[str, Any]) -> list[str]:
+    """RePORTER's preferred terms for the project, semicolon-separated in the
+    raw record. Many per award; the vocabulary keeps the ones it knows."""
+    raw = r.get("raw") or {}
+    terms = raw.get("pref_terms") if isinstance(raw, Mapping) else None
+    if not isinstance(terms, str):
+        return []
+    return [part.strip() for part in terms.split(";") if part.strip()]
+
+
 def _facts(r: Mapping[str, Any]) -> dict[str, str]:
     names = r.get("pi_names") or []
     pairs = (

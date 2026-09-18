@@ -56,6 +56,14 @@ def fetch(
     ]
 
 
+def _labels(r: Mapping[str, Any]) -> list[str]:
+    """None. USAspending sends organisations — awarding agency, sub-agency,
+    recipient — and an organisation is not a topic: the first reindex put
+    "national-science-foundation" at the top of the unplaced list, 292 times.
+    A USAspending award earns tags through the vocabulary's phrases alone."""
+    return []
+
+
 def _facts(r: Mapping[str, Any]) -> dict[str, str]:
     """No PI: USAspending names the recipient institution, not a person."""
     pairs = (

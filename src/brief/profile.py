@@ -241,6 +241,7 @@ def _parse_relevance(raw: Mapping[str, Any], path: Path) -> Relevance:
         any_of=any_of,
         none_of=_terms(block.get("none_of"), path, "relevance.none_of"),
         max_items=max_items,
+        tags=_terms(block.get("tags"), path, "relevance.tags"),
     )
 
 

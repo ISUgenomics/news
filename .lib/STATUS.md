@@ -5,14 +5,14 @@
 # news — codeLibrary status
 
 **Repo:** `/Users/andrewseverin/AI/news`  
-**HEAD:** cd308bd on `feat/scaffold`  
-**Generated:** 2026-09-17 — refresh with `/lib-status`
+**HEAD:** 3c20a39 on `feat/item-tags`  
+**Generated:** 2026-09-18 — refresh with `/lib-status`
 
 ## Extracted into codeLibrary
 
 None yet. `/lib-harvest` proposes candidates.
 
-## Seeds awaiting graduation (14)
+## Seeds awaiting graduation (18)
 
 Planted by `/lib-seed`, shaped for extraction, not extracted yet.
 
@@ -30,34 +30,42 @@ Planted by `/lib-seed`, shaped for extraction, not extracted yet.
 - `src/brief/lib/config_env_interpolate.py` — planted 2026-09-17, band strong
 - `src/brief/lib/macos_keychain_read.py` — planted 2026-09-17, band strong
 - `src/brief/lib/period_backfill_plan.py` — planted 2026-09-17, band strong
+- `src/brief/lib/openalex_works_search.py` — planted 2026-09-17, band unscored
+- `src/brief/lib/crates_io_search.py` — planted 2026-09-17, band unscored
+- `src/brief/lib/github_repo_search.py` — planted 2026-09-17, band unscored
+- `src/brief/lib/ascii_timeseries.py` — planted 2026-09-17, band unscored
 
 Graduate one when a second project wants it: `/lib-extract`
 
 ## Structure
 
-51 Python modules scanned.
+61 Python modules scanned.
 
 **Packages:** `brief`, `tests`
 
+**Hubs** — everything routes through these, so they gate the extractions around them:
+
+- `src/brief/models.py` — fan-in 16, 6 public symbols
+
 **Entangled** — would rank `strong` if these imports were severed:
 
-- `src/brief/sources/nih.py` — 10 → 18, sever 3 import(s)
-- `src/brief/sources/nsf.py` — 10 → 18, sever 3 import(s)
-- `src/brief/sources/pubmed.py` — 13 → 18, sever 2 import(s)
-- `src/brief/sources/usaspending.py` — 10 → 18, sever 3 import(s)
-- `src/brief/vendor/secret_scanner/cli.py` — 10 → 18, sever 3 import(s)
-- …and 3 more
+- `src/brief/sources/nih.py` — 9 → 17, sever 3 import(s)
+- `src/brief/sources/nsf.py` — 9 → 17, sever 3 import(s)
+- `src/brief/sources/pubmed.py` — 12 → 17, sever 2 import(s)
+- `src/brief/sources/usaspending.py` — 9 → 17, sever 3 import(s)
+- `src/brief/vendor/secret_scanner/cli.py` — 9 → 17, sever 3 import(s)
+- …and 4 more
 
 Untangle: `/lib-fix`
 
-## Worth extracting next (29)
+## Worth extracting next (36)
 
-- `src/brief/lib/config_env_interpolate.py` — strong (22)
+- `src/brief/lib/ascii_timeseries.py` — strong (23)
+- `src/brief/lib/config_env_interpolate.py` — strong (23)
 - `src/brief/lib/keyword_relevance.py` — strong (22)
-- `src/brief/lib/macos_keychain_read.py` — strong (22)
-- `src/brief/lib/nih_reporter_search.py` — strong (19)
-- `src/brief/lib/nsf_award_search.py` — strong (19)
-- …and 24 more
+- `src/brief/lib/crates_io_search.py` — strong (21)
+- `src/brief/lib/github_repo_search.py` — strong (20)
+- …and 31 more
 
 Full ranking: `/lib-harvest`. The scan has never read a line of the code it ranks — expect some of it to be wrong.
 

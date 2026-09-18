@@ -53,6 +53,10 @@ class Relevance:
     any_of: tuple[str, ...] = ()
     none_of: tuple[str, ...] = ()
     max_items: int = 80
+    #: Registry terms from tags.yaml. An item carrying one survives the filter
+    #: even when no `any_of` phrase appears in its text — the synonym-tolerant
+    #: half of relevance. `none_of` still wins.
+    tags: tuple[str, ...] = ()
 
 
 DEFAULT_SUBJECT = "{title} — week of {week_start} ({n} items)"

@@ -16,7 +16,7 @@ prepares a brief is a fact about a deployment, not about this module.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -83,6 +83,7 @@ def render(
     week_start: str,
     provider_name: str,
     item_urls: Mapping[int, str],
+    item_tags: Mapping[int, Sequence[str]] | None = None,
 ) -> RenderedBrief:
     """Render one week's result for one profile.
 
@@ -120,7 +121,7 @@ def render(
         subtitle=f"week of {week_start}",
         bucket_order=[b.name for b in profile.buckets],
         footer="",
-        link_label=lambda position: str(positions.get(position, position)),
+        link_label=lambda position: _label(position, positions, item_tags),
     )
 
     footer = _footer(
@@ -134,6 +135,23 @@ def render(
     return RenderedBrief(
         markdown=markdown, kept=rendered.kept, dropped=list(rendered.dropped)
     )
+
+
+#: How many tags a citation shows. Three names a topic; a longer list is a
+#: table row, and the link text is the one place the page has no room.
+TAGS_PER_CITATION = 3
+
+
+def _label(
+    position: int,
+    positions: Mapping[int, int],
+    item_tags: Mapping[int, Sequence[str]] | None,
+) -> str:
+    """The citation's link text: the prompt position, plus the item's first
+    tags when it has any — ``[12 · genomics, crispr](url)``."""
+    item_id = positions.get(position, position)
+    tags = list((item_tags or {}).get(item_id, ()))[:TAGS_PER_CITATION]
+    return f"{item_id} · {', '.join(tags)}" if tags else str(item_id)
 
 
 def _neutralize_result(result: dict[str, Any]) -> dict[str, Any]:

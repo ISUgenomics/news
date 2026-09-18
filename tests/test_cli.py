@@ -912,3 +912,91 @@ def test_an_unreadable_raw_record_is_reported_not_fatal(tmp_path, stub_http):
     conn.close()
     result = runner.invoke(cli.app, ["reindex", "--root", str(root)])
     assert result.exit_code == 0, "one bad row must not stop the rebuild"
+
+
+# --- tags: reindex derives them, the tags command reads them ---------------
+
+
+def _tag_root(tmp_path, vocab: str = "registry:\n  genomics:\n    match: [genome]\n  rust: {}\n"):
+    root = tmp_path / "root"
+    (root / "profiles").mkdir(parents=True)
+    (root / "config.yaml").write_text("db: data/items.db\nsmtp: {host: localhost, port: 2525}\n")
+    (root / "sources.yaml").write_text("feed_a:\n  kind: rss\n  url: https://example.test/feed\n")
+    (root / "tags.yaml").write_text(vocab)
+    conn = db.connect(root / "data" / "items.db")
+    db.upsert_items(
+        conn,
+        [
+            Item(source="feed_a", url="https://example.test/g", title="A maize genome", body="assembled"),
+            Item(source="feed_a", url="https://example.test/p", title="Parking", body="lot 4"),
+            Item(
+                source="github_repos", url="https://github.com/o/r", title="o/r", body="a rust tool",
+                raw={"full_name": "o/r", "html_url": "https://github.com/o/r", "topics": ["rust", "phylogenetics"],
+                     "language": "Rust", "stargazers_count": 1, "pushed_at": "2026-09-01T00:00:00Z",
+                     "created_at": "2026-01-01T00:00:00Z", "owner": {"login": "o"}},
+            ),
+        ],
+        now=NOW,
+    )
+    conn.close()
+    return root
+
+
+def test_reindex_derives_tags_and_is_idempotent(tmp_path):
+    root = _tag_root(tmp_path)
+    first = runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    assert first.exit_code == 0, first.output
+    events = [json.loads(line) for line in first.output.splitlines() if line.startswith("{")]
+    tags_event = next(e for e in events if e["event"] == "reindex.tags")
+    assert tags_event["tagged"] == 2 and tags_event["changed"] == 2 and tags_event["new_terms"] == 1
+    second = runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    again = next(json.loads(l) for l in second.output.splitlines() if '"reindex.tags"' in l)
+    assert again["changed"] == 0
+    conn = db.connect(root / "data" / "items.db")
+    by_url = {r[0]: r[1] for r in conn.execute("SELECT url, id FROM items")}
+    assert db.tags_for(conn, by_url.values()) == {
+        by_url["https://example.test/g"]: ["genomics"],
+        by_url["https://github.com/o/r"]: ["rust"],
+    }
+    origins = dict(conn.execute("SELECT tag, origin FROM item_tags").fetchall())
+    assert origins == {"genomics": "phrase", "rust": "source"}
+
+
+def test_tags_command_counts_new_and_item(tmp_path):
+    root = _tag_root(tmp_path)
+    runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    counts = runner.invoke(cli.app, ["tags", "--root", str(root), "--counts"])
+    assert counts.exit_code == 0 and "genomics  1" in counts.output and "rust  1" in counts.output
+    new = runner.invoke(cli.app, ["tags", "--root", str(root), "--new"])
+    assert new.exit_code == 0 and "phylogenetics" in new.output and "rust" not in new.output
+    conn = db.connect(root / "data" / "items.db")
+    gid = conn.execute("SELECT id FROM items WHERE url='https://example.test/g'").fetchone()[0]
+    one = runner.invoke(cli.app, ["tags", "--root", str(root), "--item", str(gid)])
+    assert one.output.strip() == "genomics"
+    nothing = runner.invoke(cli.app, ["tags", "--root", str(root)])
+    assert nothing.exit_code == 2
+
+
+def test_reindex_without_a_vocabulary_leaves_tags_alone(tmp_path):
+    root = _tag_root(tmp_path)
+    (root / "tags.yaml").unlink()
+    result = runner.invoke(cli.app, ["reindex", "--root", str(root)])
+    assert result.exit_code == 0 and '"reindex.tags_skipped"' in result.output
+    conn = db.connect(root / "data" / "items.db")
+    assert conn.execute("SELECT COUNT(*) FROM item_tags").fetchone()[0] == 0
+
+
+def test_a_profile_naming_an_unknown_tag_is_skipped_not_run(tmp_path):
+    root = _tag_root(tmp_path)
+    (root / "profiles" / "ok.yaml").write_text(
+        "name: ok\ntitle: OK\ncadence: weekly\naudience: a\npersona: b\nsources: [feed_a]\n"
+        "relevance:\n  any_of: [genome]\n  tags: [genomics]\nbuckets:\n  - {name: Funding, ask: awards}\n"
+        "delivery: {from: a@example.test, to: [b@example.test]}\n"
+    )
+    (root / "profiles" / "typo.yaml").write_text(
+        "name: typo\ntitle: Typo\ncadence: weekly\naudience: a\npersona: b\nsources: [feed_a]\n"
+        "relevance:\n  any_of: [genome]\n  tags: [genomcs]\nbuckets:\n  - {name: Funding, ask: awards}\n"
+        "delivery: {from: a@example.test, to: [b@example.test]}\n"
+    )
+    _config, _sources, profiles = cli.load_world(root)
+    assert [p.name for p in profiles] == ["ok"]

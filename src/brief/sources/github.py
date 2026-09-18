@@ -69,6 +69,13 @@ def _title(r: Mapping[str, Any]) -> str:
     return f"{r['full_name']} ({language})" if language else str(r["full_name"])
 
 
+def _labels(r: Mapping[str, Any]) -> list[str]:
+    """Repository topics as the owner set them, plus the primary language."""
+    return [str(t) for t in (r.get("topics") or []) if t] + (
+        [str(r["language"])] if r.get("language") else []
+    )
+
+
 def _facts(r: Mapping[str, Any]) -> dict[str, str]:
     pairs = (
         ("Stars", f"{r['stars']:,}" if r.get("stars") else ""),

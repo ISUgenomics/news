@@ -414,3 +414,14 @@ def test_each_distinct_parameter_set_gets_its_own_storage_key(tmp_path):
     keys = {key for _n, _p, key in fetch_plan([a, b])}
     assert len(keys) == 2
     assert all(k.startswith("nsf#") for k in keys), "the name stays readable in the key"
+
+
+def test_relevance_tags_are_parsed_and_default_empty(tmp_path):
+    prof = load(tmp_path, MINIMAL.replace("  any_of: [thing]\n", "  any_of: [thing]\n  tags: [genomics, crispr]\n"))
+    assert prof.relevance.tags == ("genomics", "crispr")
+    assert load(tmp_path, MINIMAL).relevance.tags == ()
+
+
+def test_relevance_tags_refuse_a_bare_string(tmp_path):
+    with pytest.raises(ProfileError, match="relevance.tags"):
+        load(tmp_path, MINIMAL.replace("  any_of: [thing]\n", "  any_of: [thing]\n  tags: genomics\n"))

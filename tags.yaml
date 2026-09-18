@@ -1,0 +1,88 @@
+# The controlled vocabulary items are tagged with. This file is DATA, like a
+# profile: no topic string lives in src/brief/. Tags are derived offline from
+# what the sources already send (OpenAlex concepts, GitHub topics, crates
+# categories, agency program lines, NIH terms) plus the `match` phrases below,
+# folded into these terms by the vendored resolver. Rebuild with
+# `brief reindex`; see what the sources send that is NOT here yet with
+# `brief tags --new`, and grow this file from that list, not from memory.
+#
+# registry: term (kebab-case) -> optional `match` phrases, whole-word and
+#           case-insensitive over title+body, so a feed item with no source
+#           labels can still earn the tag.
+# aliases:  label (kebab-case) -> registry term, for near-misses the fuzzy
+#           rung will not bridge (`genome` is three edits from `genomics`).
+
+registry:
+  genomics:
+    match: [genomics, genome, genomes, genomic, pangenome]
+  bioinformatics:
+    match: [bioinformatics, "computational biology"]
+  sequencing:
+    match: [sequencing, "RNA-seq", "long-read", nanopore, illumina]
+  transcriptomics:
+    match: [transcriptomics, transcriptome, "single-cell"]
+  proteomics:
+    match: [proteomics, proteome]
+  metagenomics:
+    match: [metagenomics, metagenome, microbiome]
+  phylogenetics:
+    match: [phylogenetics, phylogeny, phylogenomics]
+  plant-breeding:
+    match: ["plant breeding", cultivar, germplasm]
+  crispr:
+    match: [CRISPR, "gene editing", "genome editing"]
+  machine-learning:
+    match: ["machine learning", "deep learning", "neural network"]
+  artificial-intelligence:
+    match: ["artificial intelligence", "large language model", LLM]
+  agriculture:
+    match: [agriculture, agronomy, crop, livestock]
+  rust:
+    match: [rustlang, "written in Rust"]
+  software:
+    match: [software, toolkit, pipeline, workflow]
+  plant-science:
+    match: ["plant science", botany, arabidopsis, maize, soybean]
+  biotechnology:
+    match: [biotechnology, biotech]
+  data-science:
+    match: ["data science", "data mining", statistics, statistical]
+  ecology:
+    match: [ecology, ecological, biodiversity]
+  neuroscience:
+    match: [neuroscience, neural, brain]
+  funding: {}
+  computer-science: {}
+  biology: {}
+  chemistry: {}
+  engineering: {}
+  materials-science: {}
+  mathematics: {}
+  medicine: {}
+  health: {}
+  environmental-science: {}
+  psychology: {}
+  physics: {}
+
+aliases:
+  genome: genomics
+  genome-analysis: genomics
+  genomics-and-genetics: genomics
+  ngs: sequencing
+  next-generation-sequencing: sequencing
+  dna-sequencing: sequencing
+  ml: machine-learning
+  ai: artificial-intelligence
+  gene-editing: crispr
+  genome-editing: crispr
+  microbiome: metagenomics
+  computational-biology: bioinformatics
+  science-technology: software
+  transcriptome: transcriptomics
+  materials-chemistry: materials-science
+  plant-sciences: plant-science
+  botany: plant-science
+  environmental-sciences: environmental-science
+  public-health: health
+  data-mining: data-science
+  statistics: data-science
