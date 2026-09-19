@@ -923,3 +923,100 @@ def test_the_model_survives_into_the_stored_row(conn):
         (profile.name, WEEK),
     ).fetchone()
     assert tuple(stored) == ("ollama", "qwen3.8:27b-mlx")
+
+
+# --- tags: the synonym-tolerant half of relevance ---------------------------
+
+
+def _tag(conn, url: str, *tags: str) -> int:
+    item_id = conn.execute("SELECT id FROM items WHERE url = ?", (url,)).fetchone()[0]
+    db.replace_tags(conn, item_id, [(t, "phrase") for t in tags])
+    conn.commit()
+    return item_id
+
+
+def test_a_tag_selects_an_item_the_keywords_miss(conn):
+    """"Parking lot resurfacing" hits no keyword. Tagged `genomics`, and with
+    the profile asking for that tag, it reaches the model."""
+    offtopic = _tag(conn, "https://example.test/offtopic", "genomics")
+    profile = make_profile(relevance=Relevance(any_of=("machine learning", "AI"), tags=("genomics",)))
+    rows = db.items_fetched_since(conn, [r.name for r in profile.sources], since=NOW - timedelta(days=7))
+    without = select_mod.select(rows, profile, context_window_tokens=100_000)
+    assert offtopic not in {c.id for c in without.candidates}
+    tags_by_item = db.tags_for(conn, [int(r["id"]) for r in rows])
+    with_tags = select_mod.select(rows, profile, context_window_tokens=100_000, tags_by_item=tags_by_item)
+    chosen = {c.id: c for c in with_tags.candidates}
+    assert offtopic in chosen and chosen[offtopic].hits == 1 and chosen[offtopic].tags == ("genomics",)
+
+
+def test_none_of_still_drops_a_tag_only_match(conn):
+    excluded = _tag(conn, "https://example.test/excluded", "genomics")
+    profile = make_profile(
+        relevance=Relevance(any_of=("nothing-matches",), none_of=("bake sale",), tags=("genomics",))
+    )
+    rows = db.items_fetched_since(conn, [r.name for r in profile.sources], since=NOW - timedelta(days=7))
+    selection = select_mod.select(
+        rows, profile, context_window_tokens=100_000, tags_by_item=db.tags_for(conn, [int(r["id"]) for r in rows])
+    )
+    assert excluded not in {c.id for c in selection.candidates}
+
+
+def test_a_tag_hit_adds_to_a_keyword_hit_for_ranking(conn):
+    award = _tag(conn, "https://example.test/award", "genomics")
+    profile = make_profile(
+        relevance=Relevance(any_of=("machine learning", "AI"), none_of=("bake sale",), tags=("genomics",))
+    )
+    rows = db.items_fetched_since(conn, [r.name for r in profile.sources], since=NOW - timedelta(days=7))
+    selection = select_mod.select(
+        rows, profile, context_window_tokens=100_000, tags_by_item=db.tags_for(conn, [int(r["id"]) for r in rows])
+    )
+    plain = select_mod.select(rows, profile, context_window_tokens=100_000)
+    before = {c.id: c.hits for c in plain.candidates}[award]
+    hits = {c.id: c.hits for c in selection.candidates}
+    assert hits[award] == before + 1  # the keyword hits, plus one for the tag
+    assert selection.candidates[0].id == award
+
+
+def test_a_profile_without_tags_is_unchanged_by_the_table(conn):
+    _tag(conn, "https://example.test/offtopic", "genomics")
+    profile = make_profile()
+    rows = db.items_fetched_since(conn, [r.name for r in profile.sources], since=NOW - timedelta(days=7))
+    plain = select_mod.select(rows, profile, context_window_tokens=100_000)
+    tagged = select_mod.select(
+        rows, profile, context_window_tokens=100_000, tags_by_item=db.tags_for(conn, [int(r["id"]) for r in rows])
+    )
+    assert [c.id for c in plain.candidates] == [c.id for c in tagged.candidates]
+    assert [c.hits for c in plain.candidates] == [c.hits for c in tagged.candidates]
+
+
+def test_tags_appear_beside_the_citation(conn):
+    profile = make_profile()
+    provider = StubProvider(good_reply())
+    rows = db.items_fetched_since(conn, [r.name for r in profile.sources], since=NOW - timedelta(days=7))
+    selection = select_mod.select(rows, profile, context_window_tokens=provider.context_window())
+    result = synth_mod.synthesize(profile, selection, provider)
+    cited = selection.citation_map()[1]  # the reply cites prompt position 1
+    db.replace_tags(conn, cited, [(t, "phrase") for t in ("genomics", "crispr", "rust", "biology")])
+    conn.commit()
+    urls = db.urls_for_ids(conn, [i for i, _ in selection.rendered])
+    page = render_mod.render(
+        result.result, profile, selection, week_start=WEEK, provider_name="stub",
+        item_urls=urls, item_tags=db.tags_for(conn, [cited]),
+    )
+    assert f"[{cited} · biology, crispr, genomics](" in page.markdown  # three of four, sorted
+    bare = render_mod.render(
+        result.result, profile, selection, week_start=WEEK, provider_name="stub", item_urls=urls,
+    )
+    assert f"[{cited}](" in bare.markdown
+
+
+def test_a_profile_asking_for_a_parent_selects_a_child_tagged_item(conn):
+    """The hierarchy lands in the stored tag set at derive time, so selection
+    needs no walk: `biology` is simply one of the item's tags."""
+    offtopic = _tag(conn, "https://example.test/offtopic", "genomics", "biology")
+    profile = make_profile(relevance=Relevance(any_of=("machine learning", "AI"), tags=("biology",)))
+    rows = db.items_fetched_since(conn, [r.name for r in profile.sources], since=NOW - timedelta(days=7))
+    selection = select_mod.select(
+        rows, profile, context_window_tokens=100_000, tags_by_item=db.tags_for(conn, [int(r["id"]) for r in rows])
+    )
+    assert offtopic in {c.id for c in selection.candidates}

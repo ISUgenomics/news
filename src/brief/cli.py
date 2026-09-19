@@ -42,7 +42,9 @@ from brief.profile import (
     load_yaml,
 )
 from brief.sources import fetch as fetch_source
-from brief.sources import rederive, supports_history
+from brief.sources import rederive, relabel, supports_history
+from brief import tags as tags_mod
+from brief.lib.distinctive_terms import distinctive_terms
 
 app = typer.Typer(add_completion=False, help="Weekly topic briefs from public sources.")
 
@@ -147,9 +149,30 @@ def load_world(root: Path) -> tuple[dict[str, Any], dict[str, Any], list[Profile
     profiles = load_all_profiles(
         root / "profiles", config=config, sources=sources, env=env, on_error=skip
     )
+    vocab = tags_mod.load_vocabulary(root / _tags_path(config))
+    kept: list[Profile] = []
+    for prof in profiles:
+        unknown = tags_mod.unknown_tags(prof.relevance.tags, vocab)
+        if unknown:
+            # A typo here would silently match nothing, which reads as a quiet
+            # week. Treated like a malformed profile: named, skipped, others run.
+            skipped.append(prof.name)
+            log(
+                "profile.error",
+                file=prof.name,
+                error=f"relevance.tags names {unknown} which tags.yaml does not define",
+                type="UnknownTag",
+                note="this profile is skipped; the others still run",
+            )
+            continue
+        kept.append(prof)
     if skipped:
         log("profile.skipped", count=len(skipped), files=skipped)
-    return config, sources, profiles
+    return config, sources, kept
+
+
+def _tags_path(config: dict[str, Any]) -> str:
+    return str(config.get("tags") or tags_mod.DEFAULT_PATH)
 
 
 def pick(profiles: list[Profile], name: str | None, want_all: bool) -> list[Profile]:
@@ -375,7 +398,10 @@ def _synthesize_one(
         )
         return
 
-    selection = select_mod.select(rows, prof, context_window_tokens=window)
+    tags_by_item = db.tags_for(conn, [int(r["id"]) for r in rows])
+    selection = select_mod.select(
+        rows, prof, context_window_tokens=window, tags_by_item=tags_by_item
+    )
     if not selection.rendered:
         _record_stub(
             conn,
@@ -413,6 +439,7 @@ def _synthesize_one(
         week_start=week_start,
         provider_name=result.provider_name,
         item_urls=urls,
+        item_tags=tags_by_item,
     )
 
     if page.kept == 0:
@@ -769,6 +796,120 @@ def reindex(
 
     changed = db.update_derived(conn, updates)
     log("reindex.done", examined=len(updates), changed=changed, unreadable=skipped)
+    _retag(conn, root, config, source)
+
+
+def _retag(conn: Any, root: Path, config: dict[str, Any], source: str | None) -> None:
+    """Rebuild every item's tags from its raw record and text.
+
+    Same offline guarantee as facts: not in `content_hash`, no new rows. An
+    absent tags.yaml is "tagging off" and leaves the table untouched, so a
+    project that has not adopted tags pays nothing here.
+    """
+    vocab = tags_mod.load_vocabulary(root / _tags_path(config))
+    if not vocab:
+        log("reindex.tags_skipped", reason="no tags.yaml")
+        return
+    examined = tagged = changed = unreadable = 0
+    new_terms: dict[str, int] = {}
+    for item_id, src, title, body, raw in db.iter_taggable(conn, [source] if source else None):
+        examined += 1
+        try:
+            labels = relabel(src, raw) if raw is not None else []
+        except Exception as exc:
+            unreadable += 1
+            log("reindex.tags_error", item=item_id, source=src, error=str(exc))
+            continue
+        pairs, new = tags_mod.derive_tags(labels, f"{title}\n\n{body}", vocab)
+        for term in new:
+            new_terms[term] = new_terms.get(term, 0) + 1
+        if pairs:
+            tagged += 1
+        if db.replace_tags(conn, item_id, pairs):
+            changed += 1
+    conn.commit()
+    log(
+        "reindex.tags",
+        examined=examined,
+        tagged=tagged,
+        changed=changed,
+        unreadable=unreadable,
+        new_terms=len(new_terms),
+    )
+
+
+@app.command()
+def tags(
+    root: Path = typer.Option(ROOT),
+    counts: bool = typer.Option(False, "--counts", help="Items per tag"),
+    by_source: bool = typer.Option(False, "--by-source", help="With --counts: split per source"),
+    leaves: bool = typer.Option(False, "--leaves", help="With --counts: hide tags earned only as a parent"),
+    new: bool = typer.Option(False, "--new", help="Labels the sources send that tags.yaml does not know"),
+    suggest: bool = typer.Option(False, "--suggest", help="Words the UNTAGGED items are made of — candidates for match phrases"),
+    item: int | None = typer.Option(None, "--item", help="Tags on one item id"),
+    source: str | None = typer.Option(None, help="Only this source"),
+    top: int = typer.Option(40, help="Rows to show"),
+    min_count: int = typer.Option(10, help="With --suggest: a word must appear in this many untagged items"),
+    min_ratio: float = typer.Option(1.5, help="With --suggest: how much commoner among untagged than tagged items"),
+) -> None:
+    """Explore the tags: what the corpus carries, and what it could carry.
+
+    `--counts` reads the stored table. `--new` re-derives offline and reports
+    the labels the resolver could not place, most frequent first — that list
+    is how the registry grows. `--suggest` reads the untagged items' own
+    words against the tagged ones — that list is how `match` phrases grow.
+    Both from evidence rather than memory. Nothing here writes.
+    """
+    config, _sources, _profiles = load_world(root)
+    conn = db.connect(root / (str(config.get("db") or "data/items.db")))
+    if item is not None:
+        for tag in db.tags_for(conn, [item]).get(item, []):
+            typer.echo(tag)
+        return
+    if counts:
+        rows = db.tag_counts(conn, by_source=by_source, leaves=leaves)
+        for row in rows[:top]:
+            typer.echo("  ".join(str(x) for x in row))
+        if not rows:
+            typer.echo("no tags stored — run `brief reindex` after writing tags.yaml")
+        return
+    if new:
+        vocab = tags_mod.load_vocabulary(root / _tags_path(config))
+        seen: dict[str, int] = {}
+        for _id, src, title, body, raw in db.iter_taggable(conn, [source] if source else None):
+            try:
+                labels = relabel(src, raw) if raw is not None else []
+            except Exception:
+                continue
+            _pairs, unplaced = tags_mod.derive_tags(labels, f"{title}\n\n{body}", vocab) if vocab else (
+                [],
+                [tags_mod.kebab_case(x) for x in labels],
+            )
+            for term in unplaced:
+                seen[term] = seen.get(term, 0) + 1
+        for term, n in sorted(seen.items(), key=lambda kv: (-kv[1], kv[0]))[:top]:
+            typer.echo(f"{n:>6}  {term}")
+        if not seen:
+            typer.echo("nothing unplaced — every label the sources send is in tags.yaml")
+        return
+    if suggest:
+        untagged = db.untagged_ids(conn)
+        fg: list[str] = []
+        bg: list[str] = []
+        for item_id, _src, title, body, _raw in db.iter_taggable(conn, [source] if source else None):
+            (fg if item_id in untagged else bg).append(f"{title}\n\n{body}")
+        terms = distinctive_terms(fg, bg, min_count=min_count, min_ratio=min_ratio, top=top)
+        for t in terms:
+            typer.echo(f"{t['foreground']:>6}  {t['term']}  (x{t['ratio']})")
+        if not fg:
+            typer.echo("every item is tagged — nothing to suggest")
+        elif not terms:
+            typer.echo(f"{len(fg)} untagged items share no word above the floors; lower --min-count or --min-ratio")
+        else:
+            typer.echo(f"\n{len(fg)} untagged of {len(fg) + len(bg)}. Add the useful ones as `match` phrases in tags.yaml, then `brief reindex`.")
+        return
+    typer.echo("one of --counts, --new, --suggest, or --item is required")
+    raise typer.Exit(code=2)
 
 
 @app.command()

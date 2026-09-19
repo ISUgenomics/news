@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from brief.lib.context_packer import context_budget_chars, pack_items
-from brief.lib.keyword_relevance import filter_ranked
+from brief.lib.keyword_relevance import compile_terms, filter_ranked, score_text
 from brief.models import Profile
 from brief.vendor.secret_redaction import redact
 
@@ -62,6 +62,7 @@ class Candidate:
     published_at: str | None
     hits: int
     facts: dict[str, str] | None = None
+    tags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,8 +107,16 @@ def select(
     *,
     context_window_tokens: int,
     settings: Mapping[str, Any] | None = None,
+    tags_by_item: Mapping[int, Sequence[str]] | None = None,
 ) -> Selection:
-    """Filter, rank, redact, and pack one week of rows for one profile."""
+    """Filter, rank, redact, and pack one week of rows for one profile.
+
+    ``tags_by_item`` is the derived tag set per row id. With it, and a profile
+    that lists ``relevance.tags``, a row survives when it carries a listed tag
+    even if no ``any_of`` phrase appears in its text; a tag hit counts like a
+    keyword hit for ranking. ``none_of`` is checked on tag-only survivors too,
+    so it stays absolute.
+    """
     cfg = dict(settings or profile.config.get("select") or {})
     chars_per_token = int(cfg.get("chars_per_token", DEFAULT_CHARS_PER_TOKEN))
     overhead_tokens = int(
@@ -124,6 +133,10 @@ def select(
         profile.relevance.any_of,
         profile.relevance.none_of,
     )
+    tags_of: dict[int, tuple[str, ...]] = {
+        int(k): tuple(v) for k, v in (tags_by_item or {}).items()
+    }
+    ranked = _add_tag_hits(rows, ranked, profile, tags_of)
     # Two stable passes rather than one clever key: newest first, then by hit
     # count. Python's sort is stable, so the second pass keeps recency as the
     # tiebreak within an equal score.
@@ -140,6 +153,7 @@ def select(
             published_at=row.get("published_at"),
             hits=hits,
             facts=_facts_of(row),
+            tags=tags_of.get(int(row["id"]), ()),
         )
         for row, hits in ranked
     ]
@@ -169,6 +183,40 @@ def select(
         budget_chars=packed.budget_chars,
         chars_used=packed.chars_used,
     )
+
+
+def _add_tag_hits(
+    rows: Sequence[Mapping[str, Any]],
+    ranked: list[tuple[Mapping[str, Any], int]],
+    profile: Profile,
+    tags_of: Mapping[int, tuple[str, ...]],
+) -> list[tuple[Mapping[str, Any], int]]:
+    """Fold tag matches into the keyword ranking.
+
+    A row already in ``ranked`` gains one hit per listed tag it carries. A row
+    the keywords rejected joins with its tag hits as its score — unless a
+    ``none_of`` phrase appears in it, which drops it exactly as it would have
+    dropped a keyword match.
+    """
+    wanted = set(profile.relevance.tags)
+    if not wanted or not tags_of:
+        return ranked
+    none_of = compile_terms(profile.relevance.none_of)
+    kept = {int(row["id"]): i for i, (row, _) in enumerate(ranked)}
+    out = list(ranked)
+    for row in rows:
+        rid = int(row["id"])
+        tag_hits = len(wanted & set(tags_of.get(rid, ())))
+        if not tag_hits:
+            continue
+        if rid in kept:
+            existing, hits = out[kept[rid]]
+            out[kept[rid]] = (existing, hits + tag_hits)
+        elif none_of and score_text(_text_of(row), (), none_of) is None:
+            continue
+        else:
+            out.append((row, tag_hits))
+    return out
 
 
 def _facts_of(row: Mapping[str, Any]) -> dict[str, str] | None:

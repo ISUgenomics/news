@@ -53,6 +53,12 @@ def fetch(
     ]
 
 
+def _labels(r: Mapping[str, Any]) -> list[str]:
+    """esummary carries no MeSH terms, so a PubMed item earns tags only
+    through the vocabulary's phrases."""
+    return []
+
+
 def _facts(r: Mapping[str, Any]) -> dict[str, str]:
     authors = r.get("authors") or []
     pairs = (

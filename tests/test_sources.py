@@ -473,22 +473,49 @@ def test_every_kind_is_reachable_through_both_registries():
 
 
 def test_every_history_capable_kind_is_handled_by_rederive():
-    """`rederive` is a third per-source chain, dispatching on the source name.
-    A source that can fetch history but is missing from it silently returns
-    no facts on reindex — indistinguishable from a source that has none.
+    """`_normalize` is the one per-source chain both `rederive` (facts) and
+    `relabel` (tags) read, dispatching on the source name. A source that can
+    fetch history but is missing from it silently returns no facts and no
+    tags on reindex — indistinguishable from a source that has none.
 
     Checked structurally rather than by calling it: each branch needs a
     well-formed raw record of its own shape, and inventing five of them would
-    test the fixtures, not the dispatch."""
+    test the fixtures, not the dispatch. Both readers are pinned to the chain
+    so a second copy cannot quietly grow beside it again."""
     import inspect
 
-    from brief.sources import MODULES, rederive, supports_history
+    from brief.sources import MODULES, _normalize, rederive, relabel, supports_history
 
-    source = inspect.getsource(rederive)
+    source = inspect.getsource(_normalize)
     for kind in MODULES:
         if not supports_history(kind):
             continue
         assert f'"{kind}"' in source, (
-            f"{kind} fetches history but rederive() never names it, so "
-            "brief reindex would leave its rows underived"
+            f"{kind} fetches history but _normalize() never names it, so "
+            "brief reindex would leave its rows underived and untagged"
         )
+    assert "_normalize(" in inspect.getsource(rederive)
+    assert "_normalize(" in inspect.getsource(relabel)
+
+
+def test_relabel_reads_each_adapters_labels():
+    """One representative raw record per label-bearing source, through the
+    real normalizer: the labels a reindex would see."""
+    from brief.sources import relabel
+
+    openalex = {
+        "id": "https://openalex.org/W1", "title": "A pangenome", "display_name": "A pangenome",
+        "publication_date": "2026-09-01", "authorships": [], "primary_location": {},
+        "concepts": [
+            {"display_name": "Genomics", "score": 0.7},
+            {"display_name": "Cable gland", "score": 0.1},
+        ],
+        "topics": [{"display_name": "Plant Genomics", "subfield": {"display_name": "Genetics"}}],
+        "keywords": [{"display_name": "Pangenome"}],
+    }
+    assert relabel("openalex", openalex) == ["Genomics", "Plant Genomics", "Genetics", "Pangenome"]
+    github = {"full_name": "o/r", "html_url": "https://github.com/o/r", "topics": ["bioinformatics", "rust"],
+              "language": "Rust", "stargazers_count": 1, "pushed_at": "2026-09-01T00:00:00Z",
+              "created_at": "2026-01-01T00:00:00Z", "owner": {"login": "o"}}
+    assert relabel("github_repos", github) == ["bioinformatics", "rust", "Rust"]
+    assert relabel("feed_a", {"anything": 1}) == []

@@ -208,3 +208,12 @@ tests = 27
 boundary = "docs/seeds/ascii-timeseries.md"
 when_to_use = "You have dated records and want the shape of them over time without a plotting dependency or a browser. Reach for it especially when a gap matters: a Counter over the dates you have cannot show a period in which nothing happened."
 demand = "Written for `brief trends`. The empty-bucket rule is not theoretical — it is the difference between seeing a collapse in activity and seeing a smooth line."
+
+[[seed]]
+slug = "distinctive-terms"
+path = "src/brief/lib/distinctive_terms.py"
+test = "tests/test_distinctive_terms.py"
+planted = "2026-09-18"
+band = "strong"
+boundary = "docs/seeds/distinctive-terms.md"
+when_to_use = "You have a corpus split into covered and not-covered by some rule — a tag vocabulary, a classifier, a filter — and want to know, from the texts themselves, which words the uncovered ones are made of."

@@ -52,45 +52,69 @@ def supports_history(kind: str) -> bool:
 
 
 #: How to recompute an item's derived fields from the raw record a source
-#: returned. Each entry re-runs the seed's own normalizer and the adapter's own
-#: facts mapping, so reindex cannot drift from ingest: they call the same code.
-def rederive(source: str, raw: dict) -> tuple[dict[str, str] | None, str | None]:
-    """Return ``(facts, published_at)`` recomputed from a stored raw record.
-
-    Returns ``(None, None)`` for a source with no normalizer — a feed entry has
-    no raw record to re-derive from, and guessing would be worse than leaving it.
-    """
+#: returned. ONE chain: each entry re-runs the seed's own normalizer, and the
+#: adapter's own facts and labels mappings read the result, so reindex cannot
+#: drift from ingest — they call the same code. `rederive` and `relabel` are
+#: two readers of this chain, not two chains.
+def _normalize(source: str, raw: dict) -> tuple[Any, dict] | None:
+    """``(adapter module, normalized record)`` for a stored raw record, or
+    ``None`` for a source with no normalizer — a feed entry has no raw record
+    to re-derive from, and guessing would be worse than leaving it."""
     if source == "nsf":
         from brief.lib.nsf_award_search import normalize_award
 
-        record = normalize_award(raw)
-        return nsf._facts(record), record.get("published_at")
+        return nsf, normalize_award(raw)
     if source == "nih":
         from brief.lib.nih_reporter_search import normalize_project
 
-        record = normalize_project(raw)
-        return nih._facts(record), record.get("published_at")
+        return nih, normalize_project(raw)
     if source == "usaspending":
         from brief.lib.usaspending_award_search import normalize_award
 
-        record = normalize_award(raw, award_type_group="grants")
-        return usaspending._facts(record), record.get("published_at")
+        return usaspending, normalize_award(raw, award_type_group="grants")
     if source.startswith("github"):
         from brief.lib.github_repo_search import normalize_repo
 
-        record = normalize_repo(raw)
-        return github._facts(record), record.get("published_at")
+        return github, normalize_repo(raw)
     if source.startswith("openalex"):
         from brief.lib.openalex_works_search import normalize_work
 
-        record = normalize_work(raw)
-        return openalex._facts(record), record.get("published_at")
+        return openalex, normalize_work(raw)
     if source.startswith("pubmed"):
         from brief.lib.pubmed_search import record_to_item
 
-        record = record_to_item(raw)
-        return pubmed._facts(record), record.get("published_at")
-    return None, None
+        return pubmed, record_to_item(raw)
+    if source.startswith("crates"):
+        from brief.lib.crates_io_search import normalize_crate
+
+        return crates, normalize_crate(raw)
+    return None
+
+
+def rederive(source: str, raw: dict) -> tuple[dict[str, str] | None, str | None]:
+    """Return ``(facts, published_at)`` recomputed from a stored raw record.
+
+    ``(None, None)`` for a source with no normalizer.
+    """
+    found = _normalize(source, raw)
+    if found is None:
+        return None, None
+    module, record = found
+    return module._facts(record), record.get("published_at")
+
+
+def relabel(source: str, raw: dict) -> list[str]:
+    """The labels a source already attached to an item, from its raw record.
+
+    Empty for a source with no normalizer, and for one whose records carry no
+    labels; such items are tagged by phrase alone.
+    """
+    found = _normalize(source, raw)
+    if found is None:
+        return []
+    module, record = found
+    labels = getattr(module, "_labels", None)
+    return list(labels(record)) if labels else []
 
 
 class UnknownSourceKind(ValueError):

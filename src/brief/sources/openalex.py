@@ -58,6 +58,26 @@ def fetch(
     ]
 
 
+def _labels(w: Mapping[str, Any]) -> list[str]:
+    """What OpenAlex already says a work is about: concepts it scores at 0.3
+    or better, topics with their subfield, and keywords. Display names as
+    sent; the vocabulary folds them."""
+    raw = w.get("raw") or {}
+    out: list[Any] = []
+    for c in raw.get("concepts") or []:
+        if isinstance(c, Mapping) and float(c.get("score") or 0) >= 0.3:
+            out.append(c.get("display_name"))
+    for t in raw.get("topics") or []:
+        if isinstance(t, Mapping):
+            out.append(t.get("display_name"))
+            sub = t.get("subfield")
+            if isinstance(sub, Mapping):
+                out.append(sub.get("display_name"))
+    for k in raw.get("keywords") or []:
+        out.append(k.get("display_name") if isinstance(k, Mapping) else k)
+    return [str(x) for x in out if x]
+
+
 def _facts(w: Mapping[str, Any]) -> dict[str, str]:
     """Quoted verbatim, in display order. The brief cites these, so they are
     never reformatted here."""

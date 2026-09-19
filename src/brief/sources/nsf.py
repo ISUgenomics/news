@@ -51,6 +51,12 @@ def fetch(
     ]
 
 
+def _labels(r: Mapping[str, Any]) -> list[str]:
+    """The program line, one label per comma-separated program element."""
+    program = str(r.get("program") or "")
+    return [part.strip() for part in program.split(",") if part.strip()]
+
+
 def _facts(r: Mapping[str, Any]) -> dict[str, str]:
     """The named details a brief quotes verbatim: PI, amount, sponsor.
 
