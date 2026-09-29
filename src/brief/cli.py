@@ -366,6 +366,7 @@ def _synthesize_one(
     backfilled brief goes through the same prompt, the same JSON contract and
     the same citation check as a live one, so the two are comparable.
     """
+    already_briefed = 0
     if rows is None:
         max_age = int((prof.config.get("select") or {}).get("max_item_age_days", 90))
         rows = db.items_fetched_since(
@@ -374,6 +375,15 @@ def _synthesize_one(
             since=now - timedelta(days=7),
             published_after=(now - timedelta(days=max_age)).date().isoformat(),
         )
+        # The window is seven days back from now, not back to Monday, so two
+        # runs less than a week apart see the same items twice. Only the live
+        # path filters: backfill supplies its own rows and revisits past weeks
+        # by publication date on purpose.
+        seen = db.briefed_item_ids(conn, prof.name, except_week=week_start)
+        if seen:
+            kept = [r for r in rows if int(r["id"]) not in seen]
+            already_briefed = len(rows) - len(kept)
+            rows = kept
 
     try:
         provider = llm.require_provider(prof.llm)
@@ -408,11 +418,21 @@ def _synthesize_one(
             prof,
             week_start=week_start,
             now=now,
-            reason="No items matched this profile's keywords this week.",
+            reason=(
+                f"Nothing new this week: the {already_briefed} matching items in "
+                f"the window were all in an earlier brief."
+                if already_briefed
+                else "No items matched this profile's keywords this week."
+            ),
             candidates=len(rows),
             provider_name=str(getattr(provider, "name", "unknown")),
         )
-        log("synthesize.no_candidates", profile=prof.name, considered=len(rows))
+        log(
+            "synthesize.no_candidates",
+            profile=prof.name,
+            considered=len(rows),
+            already_briefed=already_briefed,
+        )
         return
 
     try:
@@ -486,6 +506,7 @@ def _synthesize_one(
         profile=prof.name,
         provider=result.provider_name,
         considered=selection.considered,
+        already_briefed=already_briefed,
         matched=selection.matched,
         sent=selection.sent,
         left_out=len(selection.left_out),

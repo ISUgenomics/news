@@ -531,3 +531,47 @@ def test_an_undated_item_survives_the_age_bound(conn):
         conn, ["feed_a"], since=NOW - timedelta(days=7), published_after="2026-06-19"
     )
     assert [r["url"] for r in got] == ["https://example.test/undated"]
+
+
+def _brief(conn, *, profile="p", week, ids):
+    db.record_brief(
+        conn, profile=profile, week_start=week, generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=ids, raw_response="{}",
+        result_json="{}", markdown="#",
+    )
+
+
+def test_an_item_already_briefed_is_reported_as_seen(conn):
+    _brief(conn, week="2026-09-14", ids=[3, 7])
+    assert db.briefed_item_ids(conn, "p") == {3, 7}
+
+
+def test_the_seen_set_is_per_profile(conn):
+    _brief(conn, profile="p", week="2026-09-14", ids=[3])
+    _brief(conn, profile="q", week="2026-09-14", ids=[9])
+    assert db.briefed_item_ids(conn, "p") == {3}
+    assert db.briefed_item_ids(conn, "q") == {9}
+    assert db.briefed_item_ids(conn, "absent") == set()
+
+
+def test_the_seen_set_unions_every_week(conn):
+    _brief(conn, week="2026-09-07", ids=[1, 2])
+    _brief(conn, week="2026-09-14", ids=[2, 3])
+    assert db.briefed_item_ids(conn, "p") == {1, 2, 3}
+
+
+def test_a_stub_week_marks_nothing_seen(conn):
+    """A dead provider must not silently consume a week's items.
+
+    The stub records an empty input list, so the items it could not brief stay
+    candidates for the next run.
+    """
+    _brief(conn, week="2026-09-14", ids=[])
+    assert db.briefed_item_ids(conn, "p") == set()
+
+
+def test_regenerating_a_week_does_not_see_its_own_brief(conn):
+    """`--force` on a stored week would otherwise suppress every item in it."""
+    _brief(conn, week="2026-09-14", ids=[1, 2])
+    _brief(conn, week="2026-09-21", ids=[3, 4])
+    assert db.briefed_item_ids(conn, "p", except_week="2026-09-21") == {1, 2}

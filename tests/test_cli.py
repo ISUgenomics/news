@@ -1017,3 +1017,134 @@ def test_tags_suggest_lists_the_untagged_items_words_not_the_tagged_ones(tmp_pat
     assert "batteries" in out.output and "thermal" in out.output
     assert "genome" not in out.output  # the tagged item's word is background, not foreground
     assert "untagged of" in out.output
+
+
+# --- the weekly window is incremental across runs -------------------------
+
+
+def _recording_provider(seen: dict, cite: int = 1):
+    class Recording:
+        name = "recording"
+
+        def available(self):
+            return True
+
+        def status(self):
+            return "ready"
+
+        def context_window(self):
+            return 100_000
+
+        def complete(self, messages):
+            seen["prompt"] = " ".join(m["content"] for m in messages)
+            return json.dumps(
+                {"buckets": [{"name": "Funding",
+                              "entries": [{"text": "x", "item_ids": [cite]}]}]}
+            )
+
+    return Recording()
+
+
+def _two_awards(tmp_path):
+    conn = db.connect(tmp_path / "x.db")
+    db.upsert_items(
+        conn,
+        [
+            Item(source="feed_a", url="https://example.test/old", title="An old award",
+                 body="b", published_at=(NOW - timedelta(days=5)).isoformat()),
+            Item(source="feed_a", url="https://example.test/new", title="A fresh award",
+                 body="b", published_at=(NOW - timedelta(days=1)).isoformat()),
+        ],
+        now=NOW,
+        source_key="feed_a",
+    )
+    return conn
+
+
+def test_an_item_already_briefed_is_not_briefed_again(tmp_path, monkeypatch):
+    """The window is seven days from now, so two runs four days apart overlap.
+
+    Measured in use: a Monday run after a Thursday run re-sent 59 of its 60
+    items to the model and reprinted last week's page.
+    """
+    conn = _two_awards(tmp_path)
+    ids = {r["title"]: r["id"]
+           for r in db.items_fetched_since(conn, ["feed_a"], since=NOW - timedelta(days=7))}
+    db.record_brief(
+        conn, profile="test", week_start="2026-09-07", generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=[ids["An old award"]],
+        raw_response="{}", result_json="{}", markdown="#",
+    )
+
+    seen = {}
+    monkeypatch.setattr(cli.llm, "require_provider",
+                        lambda cfg: _recording_provider(seen, cite=1))
+    cli._synthesize_one(conn, make_profile(), week_start=WEEK, now=NOW, root=None)
+
+    assert "A fresh award" in seen["prompt"]
+    assert "An old award" not in seen["prompt"]
+    conn.close()
+
+
+def test_a_week_regenerated_with_force_still_sees_its_own_items(tmp_path, monkeypatch):
+    """Otherwise the brief stored for this week suppresses every item in it."""
+    conn = _two_awards(tmp_path)
+    ids = [r["id"]
+           for r in db.items_fetched_since(conn, ["feed_a"], since=NOW - timedelta(days=7))]
+    db.record_brief(
+        conn, profile="test", week_start=WEEK, generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=ids, raw_response="{}",
+        result_json="{}", markdown="#",
+    )
+
+    seen = {}
+    monkeypatch.setattr(cli.llm, "require_provider",
+                        lambda cfg: _recording_provider(seen, cite=1))
+    cli._synthesize_one(conn, make_profile(), week_start=WEEK, now=NOW, root=None)
+
+    assert "A fresh award" in seen["prompt"]
+    assert "An old award" in seen["prompt"]
+    conn.close()
+
+
+def test_backfill_still_revisits_items_an_earlier_brief_used(tmp_path, monkeypatch):
+    """Backfill selects by publication date on purpose; the filter is live-only."""
+    conn = _two_awards(tmp_path)
+    rows = db.items_fetched_since(conn, ["feed_a"], since=NOW - timedelta(days=7))
+    db.record_brief(
+        conn, profile="test", week_start="2026-09-07", generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=[r["id"] for r in rows],
+        raw_response="{}", result_json="{}", markdown="#",
+    )
+
+    seen = {}
+    monkeypatch.setattr(cli.llm, "require_provider",
+                        lambda cfg: _recording_provider(seen, cite=1))
+    cli._synthesize_one(conn, make_profile(), week_start=WEEK, now=NOW, root=None,
+                        rows=rows, replace=True)
+
+    assert "An old award" in seen["prompt"]
+    assert "A fresh award" in seen["prompt"]
+    conn.close()
+
+
+def test_a_week_with_nothing_new_says_so_rather_than_no_match(tmp_path, monkeypatch):
+    """'Nothing matched your keywords' would send the reader to edit the profile."""
+    conn = _two_awards(tmp_path)
+    rows = db.items_fetched_since(conn, ["feed_a"], since=NOW - timedelta(days=7))
+    db.record_brief(
+        conn, profile="test", week_start="2026-09-07", generated_at=NOW, provider="x",
+        model="m", prompt_hash="h", input_item_ids=[r["id"] for r in rows],
+        raw_response="{}", result_json="{}", markdown="#",
+    )
+
+    seen = {}
+    monkeypatch.setattr(cli.llm, "require_provider",
+                        lambda cfg: _recording_provider(seen))
+    cli._synthesize_one(conn, make_profile(), week_start=WEEK, now=NOW, root=None)
+
+    row = db.get_brief(conn, "test", WEEK)
+    assert json.loads(row["result_json"])["stub"] is True
+    assert "earlier brief" in row["markdown"]
+    assert "prompt" not in seen, "an empty window must not reach the model"
+    conn.close()

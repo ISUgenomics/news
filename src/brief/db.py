@@ -605,6 +605,36 @@ def record_brief(
     conn.commit()
 
 
+def briefed_item_ids(
+    conn: sqlite3.Connection, profile: str, *, except_week: str | None = None
+) -> set[int]:
+    """Every item this profile has already had briefed, from stored briefs.
+
+    The live weekly window is a rolling seven days from *now*, so two runs four
+    days apart overlap and the second re-briefs the first one's items. This is
+    the set that makes the window incremental: what has been sent to the model
+    once is not sent again.
+
+    ``input_item_ids`` holds what actually reached the model, not everything
+    that matched, so an item the context budget left out stays a candidate. A
+    stub week records an empty list and therefore marks nothing seen — a dead
+    provider must not silently consume a week's items.
+
+    ``except_week`` drops one week from the set, for regenerating a week with
+    ``--force``: without it that week's own brief would suppress every item it
+    is made of and the rerun would produce an empty page.
+    """
+    sql = (
+        "SELECT DISTINCT je.value AS id FROM briefs, json_each(briefs.input_item_ids) je"
+        " WHERE briefs.profile = ?"
+    )
+    params: list[Any] = [profile]
+    if except_week is not None:
+        sql += " AND briefs.week_start <> ?"
+        params.append(except_week)
+    return {int(r["id"]) for r in conn.execute(sql, params)}
+
+
 def get_brief(
     conn: sqlite3.Connection, profile: str, week_start: str
 ) -> dict[str, Any] | None:
